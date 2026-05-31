@@ -19,6 +19,7 @@ const viewTitles: Record<string, string> = {
   agents: 'Agent Fleet',
   claims: 'Claims Pipeline',
   escalations: 'Escalation Queue',
+  'payer-rules': 'Payer Contract & Rules',
   analytics: 'Analytics & Reporting',
   chat: 'AI Assistant',
 };

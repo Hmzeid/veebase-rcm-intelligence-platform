@@ -8,6 +8,7 @@ import { AgentsView } from '@/components/rcm/agents/agents-view';
 import { ClaimsView } from '@/components/rcm/claims/claims-view';
 import { EscalationsView } from '@/components/rcm/escalations/escalations-view';
 import { AnalyticsView } from '@/components/rcm/analytics/analytics-view';
+import { PayerRulesPanel } from '@/components/rcm/agents/payer-rules-panel';
 import { ChatView } from '@/components/rcm/chat/chat-view';
 
 export default function Home() {
@@ -27,6 +28,7 @@ export default function Home() {
           {activeView === 'agents' && <AgentsView />}
           {activeView === 'claims' && <ClaimsView />}
           {activeView === 'escalations' && <EscalationsView />}
+          {activeView === 'payer-rules' && <PayerRulesPanel />}
           {activeView === 'analytics' && <AnalyticsView />}
           {activeView === 'chat' && <ChatView />}
         </main>

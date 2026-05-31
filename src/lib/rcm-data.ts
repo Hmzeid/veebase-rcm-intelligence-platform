@@ -492,6 +492,82 @@ export const PAYER_MIX = [
   { name: 'Self-Pay', value: 15, color: '#6b7280' },
 ];
 
+// ========== INITIAL ACTIVITIES ==========
+export const INITIAL_ACTIVITIES = [
+  {
+    id: '1',
+    type: 'escalation' as const,
+    claimNumber: 'CLM-2026-0008',
+    message: 'Phantom billing detected — charges for procedure with no clinical order',
+    timestamp: new Date(Date.now() - 600000).toISOString(),
+    agent: 'FraudWasteAbuse',
+    severity: 'error' as const,
+  },
+  {
+    id: '2',
+    type: 'claim_denied' as const,
+    claimNumber: 'CLM-2026-0005',
+    message: 'Prior authorization denied by NHIA — insufficient clinical documentation',
+    timestamp: new Date(Date.now() - 5400000).toISOString(),
+    agent: 'PriorAuthorization',
+    severity: 'error' as const,
+  },
+  {
+    id: '3',
+    type: 'claim_paid' as const,
+    claimNumber: 'CLM-2026-0014',
+    message: 'Payment received: EGP 18,450 from NHIA (contracted rate matched)',
+    timestamp: new Date(Date.now() - 7200000).toISOString(),
+    agent: 'PaymentPosting',
+    severity: 'success' as const,
+  },
+  {
+    id: '4',
+    type: 'auth_approved' as const,
+    claimNumber: 'CLM-2026-0020',
+    message: 'Prior authorization approved by MedRight TPA — valid for 30 days',
+    timestamp: new Date(Date.now() - 10800000).toISOString(),
+    agent: 'PriorAuthorization',
+    severity: 'success' as const,
+  },
+  {
+    id: '5',
+    type: 'claim_submitted' as const,
+    claimNumber: 'CLM-2026-0023',
+    message: 'Claim submitted to NHIA via HFCX — readiness score 96%',
+    timestamp: new Date(Date.now() - 14400000).toISOString(),
+    agent: 'ClaimScrubSubmit',
+    severity: 'info' as const,
+  },
+  {
+    id: '6',
+    type: 'payment_posted' as const,
+    claimNumber: 'CLM-2026-0011',
+    message: 'Underpayment detected: paid EGP 8,200 vs contracted EGP 9,800',
+    timestamp: new Date(Date.now() - 18000000).toISOString(),
+    agent: 'PaymentPosting',
+    severity: 'warning' as const,
+  },
+  {
+    id: '7',
+    type: 'claim_submitted' as const,
+    claimNumber: 'CLM-2026-0024',
+    message: 'Claim submitted to Globemed Egypt — readiness score 92%',
+    timestamp: new Date(Date.now() - 21600000).toISOString(),
+    agent: 'ClaimScrubSubmit',
+    severity: 'info' as const,
+  },
+  {
+    id: '8',
+    type: 'claim_paid' as const,
+    claimNumber: 'CLM-2026-0016',
+    message: 'Payment received: EGP 32,100 from Globemed Egypt',
+    timestamp: new Date(Date.now() - 28800000).toISOString(),
+    agent: 'PaymentPosting',
+    severity: 'success' as const,
+  },
+];
+
 // ========== SUMMARY STATS ==========
 export const DASHBOARD_SUMMARY = {
   totalClaimsActive: 107,

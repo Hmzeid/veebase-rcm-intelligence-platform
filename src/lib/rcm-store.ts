@@ -1,8 +1,18 @@
 import { create } from 'zustand';
 import { ClaimRecord, ClaimStatus, AgentRecord, EscalationRecord, KPIRecord } from './rcm-types';
-import { AGENTS, CLAIMS, ESCALATIONS, KPIS } from './rcm-data';
+import { AGENTS, CLAIMS, ESCALATIONS, KPIS, INITIAL_ACTIVITIES } from './rcm-data';
 
-type ViewMode = 'dashboard' | 'agents' | 'claims' | 'escalations' | 'analytics' | 'chat';
+type ViewMode = 'dashboard' | 'agents' | 'claims' | 'escalations' | 'analytics' | 'chat' | 'payer-rules';
+
+export interface ActivityItem {
+  id: string;
+  type: 'claim_submitted' | 'claim_paid' | 'claim_denied' | 'escalation' | 'auth_approved' | 'payment_posted';
+  claimNumber: string;
+  message: string;
+  timestamp: string;
+  agent?: string;
+  severity: 'info' | 'success' | 'warning' | 'error';
+}
 
 interface RCMStore {
   // Navigation
@@ -14,6 +24,7 @@ interface RCMStore {
   claims: ClaimRecord[];
   escalations: EscalationRecord[];
   kpis: KPIRecord[];
+  recentActivities: ActivityItem[];
 
   // Filters
   claimStatusFilter: ClaimStatus | 'ALL';
@@ -46,6 +57,7 @@ export const useRCMStore = create<RCMStore>((set) => ({
   claims: CLAIMS,
   escalations: ESCALATIONS,
   kpis: KPIS,
+  recentActivities: INITIAL_ACTIVITIES,
 
   // Filters
   claimStatusFilter: 'ALL',

@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Activity,
   Shield,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,7 @@ const navItems: { id: ViewMode; label: string; icon: React.ElementType }[] = [
   { id: 'agents', label: 'Agents', icon: Bot },
   { id: 'claims', label: 'Claims Pipeline', icon: FileText },
   { id: 'escalations', label: 'Escalations', icon: AlertOctagon },
+  { id: 'payer-rules', label: 'Payer Rules', icon: BookOpen },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'chat', label: 'AI Assistant', icon: MessageSquare },
 ];
