@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Claim {
+  id                String   @id @default(cuid())
+  claimNumber       String   @unique
+  patientId         String
+  patientName       String
+  nationalId        String
+  encounterId       String
+  payerId           String
+  payerName         String
+  payerType         String   // NHIA | PRIVATE | SELF_PAY
+  serviceDate       DateTime
+  totalAmount       Float
+  status            String   // ELIGIBILITY | PRIOR_AUTH | CHARGE_CAPTURE | CODING | SCRUBBING | SUBMITTED | ADJUDICATION | REMITTANCE | DENIED | PAID | CLOSED | WRITTEN_OFF
+  readinessScore    Int      @default(0)
+  denialRiskScore   Int      @default(0)
+  priorAuthRequired Boolean  @default(false)
+  priorAuthNumber   String?
+  priorAuthStatus   String?  // APPROVED | DENIED | PENDING | NOT_REQUIRED
+  submittedAt       DateTime?
+  expectedResponseBy DateTime?
+  paidAmount        Float    @default(0)
+  patientResponsibility Float @default(0)
+  appealDeadline    DateTime?
+  filingDeadline    DateTime?
+  phase             Int      @default(1)
+  hitlGate          String   @default("REVIEW") // APPROVE | REVIEW | AUTO
+  currentAgent      String?
+  tags              String   @default("[]") // JSON array of tags
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model AgentStatus {
+  id              String   @id @default(cuid())
+  agentName       String   @unique
+  displayName     String
+  description     String
+  icon            String
+  status          String   @default("IDLE") // ACTIVE | IDLE | ERROR | PROCESSING
+  lastActivity    DateTime?
+  claimsProcessed Int      @default(0)
+  activeClaims    Int      @default(0)
+  errorCount      Int      @default(0)
+  avgProcessingMs Int      @default(0)
+  category        String   // LINEAR | SENTINEL | KNOWLEDGE | ANALYTICS
+  sequence        Int      @default(0)
+  updatedAt       DateTime @updatedAt
+}
+
+model Escalation {
+  id              String   @id @default(cuid())
+  claimId         String
+  claimNumber     String
+  level           Int      // 1-5
+  reason          String
+  agentName       String
+  status          String   @default("PENDING") // PENDING | ACKNOWLEDGED | RESOLVED | ESCALATED
+  tags            String   @default("[]") // JSON array
+  assignedTo      String?
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model KPIRecord {
+  id          String   @id @default(cuid())
+  name        String
+  value       Float
+  target      Float
+  unit        String   // pct | days | EGP | count
+  category    String   // OPERATIONAL | FINANCIAL | QUALITY
+  period      String   // DAILY | WEEKLY | MONTHLY
+  trend       String   @default("STABLE") // IMPROVING | STABLE | DEGRADING
+  recordedAt  DateTime @default(now())
+}
