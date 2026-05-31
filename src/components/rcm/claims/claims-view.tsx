@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { ClaimSubmitDialog } from './claim-submit-dialog';
 
 const statusLabels: Record<ClaimStatus, string> = {
   ELIGIBILITY: 'Eligibility Check',
@@ -98,6 +99,7 @@ export function ClaimsView() {
             <SelectItem value="CLOSED">Closed</SelectItem>
           </SelectContent>
         </Select>
+        <ClaimSubmitDialog />
       </div>
 
       {/* Pipeline progress bar */}

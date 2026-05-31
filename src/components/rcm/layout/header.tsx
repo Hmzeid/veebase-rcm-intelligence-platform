@@ -1,9 +1,9 @@
 'use client';
 
 import { useRCMStore } from '@/lib/rcm-store';
-import { Bell, Search, Shield } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { Bell, Search, Shield, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -19,6 +19,7 @@ const viewTitles: Record<string, string> = {
   agents: 'Agent Fleet',
   claims: 'Claims Pipeline',
   escalations: 'Escalation Queue',
+  audit: 'Compliance Audit Trail',
   'payer-rules': 'Payer Contract & Rules',
   analytics: 'Analytics & Reporting',
   chat: 'AI Assistant',
@@ -26,6 +27,7 @@ const viewTitles: Record<string, string> = {
 
 export function Header() {
   const { activeView, escalations, setActiveView } = useRCMStore();
+  const { theme, setTheme } = useTheme();
   const pendingEsc = escalations.filter((e) => e.status === 'PENDING');
 
   return (
@@ -44,14 +46,49 @@ export function Header() {
 
         {/* Right side */}
         <div className="flex items-center gap-2">
-          {/* Search (hidden on mobile) */}
-          <div className="hidden md:flex items-center relative">
-            <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search claims, patients..."
-              className="pl-8 h-8 w-56 text-sm bg-muted/50 border-0"
-            />
-          </div>
+          {/* Search — opens command palette */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="hidden md:flex items-center gap-2 h-8 px-3 text-muted-foreground bg-muted/50 hover:bg-muted"
+            onClick={() => {
+              document.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true })
+              );
+            }}
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="text-xs">Search...</span>
+            <kbd className="ml-2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </Button>
+
+          {/* Mobile search button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden h-8 w-8"
+            onClick={() => {
+              document.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true })
+              );
+            }}
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+
+          {/* Dark mode toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            aria-label="Toggle dark mode"
+          >
+            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          </Button>
 
           {/* Notifications */}
           <DropdownMenu>

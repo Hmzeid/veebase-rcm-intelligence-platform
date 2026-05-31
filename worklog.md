@@ -120,3 +120,205 @@ Stage Summary:
 - AI-generated logo and hero images
 - All API endpoints verified working
 - Lint clean, dev server stable on port 3000
+
+---
+Task ID: 4
+Agent: Command Palette Builder
+Task: Build Command Palette (⌘K) for RCM Intelligence Platform
+
+Work Log:
+- Read worklog.md and all existing project files (rcm-store, rcm-types, rcm-data, header, page, command UI, dialog UI)
+- Created /src/components/rcm/layout/command-palette.tsx — full-featured command palette
+  - Opens with ⌘K / Ctrl+K keyboard shortcut via global event listener
+  - Uses shadcn CommandDialog (Dialog + Command) for professional modal experience
+  - Navigation group: all 7 views with icons (Dashboard, Agents, Claims, Escalations, Payer Rules, Analytics, AI Chat)
+  - Claims search: searchable by claim number, patient name, payer name; shows status badge
+  - Agents search: searchable by display name and agent name; shows status indicator dot
+  - Escalations search: searchable by claim number and reason; shows level badge (color-coded)
+  - Recent actions: persisted to localStorage (veebase-rcm-recent-actions), max 5 items, deduped by id
+  - Selecting a claim → sets selectedClaim + navigates to claims view
+  - Selecting an agent → sets selectedAgent + navigates to agents view
+  - Selecting an escalation → sets selectedEscalation + navigates to escalations view
+  - Selecting a nav item → navigates to that view
+  - All selections tracked as recent actions for quick re-access
+- Modified /src/app/page.tsx — imported and rendered CommandPalette at top level
+- Modified /src/components/rcm/layout/header.tsx
+  - Replaced search Input with a button that dispatches ⌘K keyboard event to open command palette
+  - Desktop: shows "Search..." text with ⌘K kbd hint
+  - Mobile: shows search icon button
+  - Removed unused Input import
+- Fixed lint error: replaced useEffect + setState with lazy useState initializer for recent actions
+- Removed unused imports (useRef, User, Building2)
+- Ran bun run lint — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- Command Palette accessible via ⌘K/Ctrl+K and header search button
+- Search across all 7 views, 25 claims, 12 agents, 10 escalations
+- Recent actions persisted to localStorage for cross-session recall
+- Header search input replaced with ⌘K-aware button
+- Lint passes cleanly, dev server stable
+
+---
+Task ID: 7+9
+Agent: Dark Mode & Claim Submission Builder
+Task: Build Dark Mode Toggle and Claim Submission Form
+
+Work Log:
+- Confirmed next-themes already installed (^0.4.6) in package.json
+- Updated /src/app/layout.tsx — wrapped children with ThemeProvider from next-themes
+  - attribute="class", defaultTheme="light", enableSystem, disableTransitionOnChange
+- Updated /src/components/rcm/layout/header.tsx — added dark mode toggle button
+  - Uses useTheme hook from next-themes
+  - Sun/Moon icons with CSS rotation/scale transition for smooth toggle animation
+  - Positioned between search and notification bell
+  - aria-label="Toggle dark mode" for accessibility
+- Updated /src/lib/rcm-store.ts — added addClaim action
+  - Appends new claim to front of claims array via set()
+- Created /src/components/rcm/claims/claim-submit-dialog.tsx — comprehensive claim submission dialog
+  - Triggered by green "New Claim" button with Plus icon
+  - 10 form fields: Patient Name, National ID (14-digit validation), Payer (5 options with badges), Service Date, Total Amount (EGP), Department (6 options), Procedure Code (CPT), Diagnosis Code (ICD-10), Prior Auth Required (switch), Notes (textarea)
+  - Real-time readiness score computation (0–100%): each filled field contributes to score
+  - Real-time denial risk computation: prior auth + high amount increases risk, missing codes increase risk
+  - Inline validation with red borders and error messages
+  - HITL Gate defaults to 'REVIEW' with amber notice banner
+  - New claims start at ELIGIBILITY status with EligibilityBenefits agent
+  - Auto-tags: HIGH_VALUE_REVIEW (>50k), URGENT_AUTH (prior auth), DENIAL_RISK_HIGH (risk≥50)
+  - Success toast via sonner on submission
+  - Form resets on close/cancel
+- Updated /src/components/rcm/claims/claims-view.tsx — added ClaimSubmitDialog next to filters
+  - Green "New Claim" button sits alongside search and status filter
+  - Imported ClaimSubmitDialog component
+- Ran bun run lint — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- Dark mode toggle: ThemeProvider wrapping app, Sun/Moon toggle in header with smooth CSS transitions
+- Claim submission: full dialog with 10 fields, validation, readiness/risk scoring, auto-tagging, and toast notification
+- Store extended with addClaim action for real-time claim insertion
+- Claims view enhanced with prominent "New Claim" button
+- Lint clean, dev server stable on port 3000
+
+---
+Task ID: 5
+Agent: Notification System Builder
+Task: Build Real-Time Notification/Toast System
+
+Work Log:
+- Read worklog.md and all relevant files (rcm-store, sonner.tsx, use-agent-simulation.ts, layout.tsx, page.tsx)
+- Created /src/components/rcm/layout/notification-system.tsx — real-time toast notification component
+  - Watches Zustand store's `recentActivities` via useEffect with a ref tracking previously seen IDs
+  - When new activities are detected, shows Sonner toast.custom() with severity-specific styling
+  - Severity config: error (red, AlertTriangle, persistent), warning (amber, AlertCircle, 8s), success (green, CheckCircle, 5s), info (blue, Info, 5s)
+  - Each toast shows: claim number badge (monospace), agent name, message, timestamp, close button
+  - Clicking a toast navigates to the relevant view (claims, escalations, agents, dashboard) via setActiveView
+  - Left border color indicator for severity at a glance
+  - Fully unstyled Sonner toasts with custom Tailwind CSS for dark mode support
+  - Component returns null — only side effects, no DOM footprint
+- Enhanced /src/components/rcm/dashboard/use-agent-simulation.ts
+  - Added 10% chance for PROCESSING agents to transition to ERROR state
+  - Added ERROR_ACTIVITY_TEMPLATES (4 error messages) — always generates error-severity activity when agent goes to ERROR
+  - Added COMPLETION_ACTIVITY_TEMPLATES (4 success messages) — 70% chance to generate success activity when agent finishes processing
+  - Increased activity cap from 20 to 30 items
+  - Random activity generation reduced from 50% to 40% (supplemented by event-driven activities)
+- Added Sonner <Toaster /> to /src/app/layout.tsx alongside existing shadcn Toaster
+  - Positioned bottom-right, unstyled mode, no rich colors (custom styling in NotificationSystem)
+- Added NotificationSystem component to /src/app/page.tsx
+- Ran bun run lint — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- Real-time notification toast system watches store for new activities and shows Sonner toasts
+- 4 severity levels with distinct icons, colors, and auto-dismiss timings (error=persistent, warning=8s, success/info=5s)
+- Clickable toasts navigate to relevant views (claims, escalations, agents)
+- Enhanced agent simulation with ERROR transitions and completion events for richer notification variety
+- Sonner Toaster added to root layout, NotificationSystem added to page
+- Lint passes cleanly, dev server stable
+
+---
+Task ID: 6
+Agent: Compliance Audit Trail Builder
+Task: Build Compliance Audit Trail view for Veebase RCM Intelligence Platform
+
+Work Log:
+- Read worklog.md and all existing project files (rcm-store, rcm-types, rcm-data, sidebar-nav, header, page)
+- Updated /src/lib/rcm-types.ts — Added AuditEntry interface with 10 fields:
+  - id, timestamp, action (9 action types), actor, actorRole, claimNumber, agentName, details, previousValue, newValue, riskLevel, tags
+- Updated /src/lib/rcm-data.ts — Added AUDIT_ENTRIES with 20 Egypt-specific mock entries
+  - Covers all 9 action types: HITL_APPROVE, HITL_REJECT, ESCALATE, RESOLVE, SUBMIT_CLAIM, APPEAL_FILED, PAYMENT_DISPUTE, PHASE_CHANGE, AGENT_OVERRIDE
+  - Egyptian names (Dr. Ahmed Hassan, Sara Mahmoud, Karim Tarek, etc.)
+  - NHIA/HFCX context throughout (HFCX gateway submissions, NHIA contracts, CoverageEligibilityResponse, etc.)
+  - Risk levels: 5 LOW, 6 MEDIUM, 6 HIGH, 3 CRITICAL
+  - Tags include COMPLIANCE_FLAG, PHANTOM_BILLING, HIGH_VALUE_REVIEW, UNDERPAYMENT, APPEAL, etc.
+- Updated /src/lib/rcm-store.ts — Extended store with audit capabilities
+  - Added auditEntries state field initialized with AUDIT_ENTRIES data
+  - Added addAuditEntry action that prepends new entries
+  - Added 'audit' to ViewMode type union
+  - Updated acknowledgeEscalation action to create ESCALATE audit entry with claim details
+  - Updated resolveEscalation action to create RESOLVE audit entry with claim details
+- Created /src/components/rcm/audit/audit-view.tsx — Full audit trail view
+  - Summary stats: total entries, critical events, HITL decisions, pending reviews
+  - Filters: action type (9 types), risk level (4 levels), actor role (dynamic from data), search by claim/details/actor
+  - Active filter indicators with badges and count display
+  - Timeline layout with left-side vertical line and colored dots
+  - Each entry shows: action type badge (icon + color-coded), risk level badge (color-coded), timestamp, actor name/role with avatar, claim number badge, agent name, details text, previous→new value change, tags
+  - Color-coded risk levels: LOW=green, MEDIUM=amber, HIGH=orange, CRITICAL=red (border-left, dot, badge)
+  - Export button with toast notification
+  - Clear filters button when filters active
+  - Empty state with icon and message
+  - Responsive design (mobile + desktop)
+  - ScrollArea for long lists
+- Updated /src/components/rcm/layout/sidebar-nav.tsx — Added "Audit Trail" nav item
+  - ClipboardList icon from lucide-react
+  - Positioned after Escalations, before Payer Rules
+- Updated /src/components/rcm/layout/header.tsx — Added audit view title
+  - 'audit': 'Compliance Audit Trail'
+- Updated /src/app/page.tsx — Added AuditView rendering
+  - Imported AuditView from audit/audit-view
+  - Added conditional rendering for activeView === 'audit'
+- Ran bun run lint — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- Compliance Audit Trail view with 20 Egypt-specific entries covering all 9 action types
+- Timeline-style layout with color-coded risk levels (LOW/MEDIUM/HIGH/CRITICAL)
+- Filterable by action type, risk level, actor role; searchable by claim number and details
+- Summary stats: total entries, critical count, HITL decisions, pending reviews
+- Store extended with audit entries and addAuditEntry action; acknowledge/resolve now create audit entries
+- Sidebar navigation updated with Audit Trail item (ClipboardList icon)
+- Header title updated for audit view
+- 8 views total: Dashboard, Agents, Claims, Escalations, Audit Trail, Payer Rules, Analytics, AI Chat
+- Lint passes cleanly, dev server stable on port 3000
+
+---
+Task ID: 8
+Agent: Analytics Enhancement Builder
+Task: Enhance Analytics View with advanced charts and visualizations
+
+Work Log:
+- Read worklog.md and all existing project files (analytics-view.tsx, rcm-data.ts, rcm-store.ts, rcm-types.ts)
+- Updated /src/lib/rcm-data.ts — Added new chart data exports:
+  - REVENUE_TREND_DATA: 6-month stacked area chart data (Oct-Mar) with NHIA, Private TPAs, Self-Pay revenue breakdown
+  - CLAIMS_AGING_DATA: 4 aging buckets (0-30, 31-60, 61-90, 90+) with claim counts, EGP amounts, and color coding
+- Rewrote /src/components/rcm/analytics/analytics-view.tsx — Complete enhancement with 6 new features:
+  1. Payer Mix Donut Chart: PieChart with innerRadius=60 showing NHIA 45%, Private 40%, Self-Pay 15% with percentage labels and total claims count in center
+  2. Claims Aging Analysis: Horizontal BarChart computed dynamically from claims data (createdAt vs current date), color-coded green/amber/orange/red, shows EGP amounts per bucket
+  3. Agent Performance Heatmap: Full table with all 12 agents × 4 metrics (Claims Processed, Active Claims, Avg Time, Error Rate), color-coded cells (green=good, amber=moderate, red=concerning) with dark mode support
+  4. Financial Summary Cards: 4 cards at top — Total Billed (EGP), Total Collected (EGP), Collection Rate (%), AR Days — all computed from claims data with trend indicators
+  5. Time Period Selector: Tabs component with This Week / This Month / This Quarter options (Calendar icon + text)
+  6. Revenue Trend Area Chart: Stacked AreaChart showing 6-month revenue trend with gradient fills for NHIA, Private TPAs, and Self-Pay
+- Retained all existing charts: Denial Rate Trend, Revenue by Payer, Denial by Reason, Daily Claims Volume, Agent Activity, Root Cause Narratives
+- Added new imports: useMemo, useState, Tabs/TabsList/TabsTrigger, AreaChart/Area, PieChart/Pie/Cell, Calendar/Clock/DollarSign/Wallet/BarChart3 icons
+- Added helper functions: getClaimsProcessedColor, getActiveClaimsColor, getAvgTimeColor, getErrorRateColor for heatmap
+- Added FinancialCard component with icon, color theming, and trend indicator
+- Responsive grid layouts maintained (1 col mobile, 2 col lg)
+- Ran bun run lint — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- Analytics view enhanced with 6 new features: Payer Mix Donut, Claims Aging, Agent Heatmap, Financial Summary Cards, Time Period Selector, Revenue Trend Area Chart
+- Total chart count: 8 (Denial Trend, Payer Mix Donut, Revenue Trend, Claims Aging, Revenue by Payer, Denial by Reason, Daily Volume, Agent Activity)
+- Plus: 4 Financial Summary Cards, 12 KPI Cards, Agent Performance Heatmap, 2 Root Cause Narratives
+- All charts use Recharts with responsive containers and dark mode support
+- Financial metrics computed live from Zustand store claims data
+- Lint passes cleanly, dev server stable on port 3000

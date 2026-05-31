@@ -16,6 +16,22 @@ const STATUS_TRANSITIONS: Record<AgentStatusType, AgentStatusType[]> = {
   ERROR: ['IDLE'],
 };
 
+// Error transition templates — used when agents encounter errors
+const ERROR_ACTIVITY_TEMPLATES = [
+  'Agent encountered processing error — claim requires manual intervention',
+  'Timeout error — payer system unresponsive after retry',
+  'Data validation error — missing required field in claim',
+  'Connection error — HFCX gateway returned HTTP 503',
+];
+
+// Completion activity templates — used when agents finish processing
+const COMPLETION_ACTIVITY_TEMPLATES = [
+  'Batch processing complete — {count} claims processed successfully',
+  'Claim scrubbed and cleared — submitted to payer',
+  'Coding validation passed — claim ready for submission',
+  'Payment reconciliation complete — all remittances matched',
+];
+
 const SIMULATION_ACTIVITY_MESSAGES: {
   type: 'claim_submitted' | 'claim_paid' | 'claim_denied' | 'escalation' | 'auth_approved' | 'payment_posted';
   severities: ('info' | 'success' | 'warning' | 'error')[];
@@ -142,13 +158,28 @@ export function useAgentSimulation(enabled = true) {
     const updateCount = Math.random() < 0.4 ? 2 : 1;
     const updatedAgents = [...agents];
 
+    const pendingNewActivities: Array<{
+      id: string;
+      type: 'claim_submitted' | 'claim_paid' | 'claim_denied' | 'escalation' | 'auth_approved' | 'payment_posted';
+      claimNumber: string;
+      message: string;
+      timestamp: string;
+      agent: string;
+      severity: 'info' | 'success' | 'warning' | 'error';
+    }> = [];
+
     for (let i = 0; i < updateCount; i++) {
       const idx = randomBetween(0, updatedAgents.length - 1);
       const agent = updatedAgents[idx];
 
-      // Transition status
-      const possibleNext = STATUS_TRANSITIONS[agent.status];
-      const newStatus = randomPick(possibleNext);
+      // Transition status — with a 10% chance of ERROR from PROCESSING
+      let newStatus: AgentStatusType;
+      if (agent.status === 'PROCESSING' && Math.random() < 0.1) {
+        newStatus = 'ERROR';
+      } else {
+        const possibleNext = STATUS_TRANSITIONS[agent.status];
+        newStatus = randomPick(possibleNext);
+      }
 
       // Increment processed claims if transitioning away from PROCESSING
       const claimsProcessed = agent.status === 'PROCESSING' && newStatus !== 'PROCESSING'
@@ -167,29 +198,59 @@ export function useAgentSimulation(enabled = true) {
           ? Math.max(0, agent.activeClaims - randomBetween(0, 2))
           : agent.activeClaims,
       };
+
+      // Generate activity for ERROR transitions (always)
+      if (newStatus === 'ERROR') {
+        pendingNewActivities.push({
+          id: `sim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          type: 'escalation',
+          claimNumber: `CLM-2026-${String(randomBetween(1, 25)).padStart(4, '0')}`,
+          message: randomPick(ERROR_ACTIVITY_TEMPLATES),
+          timestamp: new Date().toISOString(),
+          agent: agent.name,
+          severity: 'error',
+        });
+      }
+
+      // Generate activity for completion transitions (PROCESSING → IDLE/ACTIVE, 70% chance)
+      if (agent.status === 'PROCESSING' && (newStatus === 'IDLE' || newStatus === 'ACTIVE') && Math.random() < 0.7) {
+        const completionMessage = randomPick(COMPLETION_ACTIVITY_TEMPLATES)
+          .replace('{count}', String(randomBetween(2, 15)));
+        pendingNewActivities.push({
+          id: `sim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          type: 'claim_paid',
+          claimNumber: `CLM-2026-${String(randomBetween(1, 25)).padStart(4, '0')}`,
+          message: completionMessage,
+          timestamp: new Date().toISOString(),
+          agent: agent.name,
+          severity: 'success',
+        });
+      }
     }
 
-    // Generate a new activity item (50% chance)
-    let newActivities = state.recentActivities || [];
-    if (Math.random() < 0.5) {
+    // Also generate a random activity item (40% chance, for variety)
+    if (Math.random() < 0.4) {
       const activityGroup = randomPick(SIMULATION_ACTIVITY_MESSAGES);
       const message = fillTemplate(randomPick(activityGroup.templates));
       const severity = randomPick(activityGroup.severities);
       const claimNum = `CLM-2026-${String(randomBetween(1, 25)).padStart(4, '0')}`;
       const agentName = randomPick(AGENT_NAMES);
 
-      newActivities = [
-        {
-          id: `sim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          type: activityGroup.type,
-          claimNumber: claimNum,
-          message,
-          timestamp: new Date().toISOString(),
-          agent: agentName,
-          severity,
-        },
-        ...newActivities,
-      ].slice(0, 20); // Keep max 20 items
+      pendingNewActivities.push({
+        id: `sim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        type: activityGroup.type,
+        claimNumber: claimNum,
+        message,
+        timestamp: new Date().toISOString(),
+        agent: agentName,
+        severity,
+      });
+    }
+
+    // Prepend new activities and cap at 30
+    let newActivities = state.recentActivities || [];
+    if (pendingNewActivities.length > 0) {
+      newActivities = [...pendingNewActivities, ...newActivities].slice(0, 30);
     }
 
     // Apply batch update to store

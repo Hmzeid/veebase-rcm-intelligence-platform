@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import { ClaimRecord, ClaimStatus, AgentRecord, EscalationRecord, KPIRecord } from './rcm-types';
-import { AGENTS, CLAIMS, ESCALATIONS, KPIS, INITIAL_ACTIVITIES } from './rcm-data';
+import { ClaimRecord, ClaimStatus, AgentRecord, EscalationRecord, KPIRecord, AuditEntry } from './rcm-types';
+import { AGENTS, CLAIMS, ESCALATIONS, KPIS, INITIAL_ACTIVITIES, AUDIT_ENTRIES } from './rcm-data';
 
-type ViewMode = 'dashboard' | 'agents' | 'claims' | 'escalations' | 'analytics' | 'chat' | 'payer-rules';
+export type ViewMode = 'dashboard' | 'agents' | 'claims' | 'escalations' | 'analytics' | 'chat' | 'payer-rules' | 'audit';
 
 export interface ActivityItem {
   id: string;
@@ -25,6 +25,7 @@ interface RCMStore {
   escalations: EscalationRecord[];
   kpis: KPIRecord[];
   recentActivities: ActivityItem[];
+  auditEntries: AuditEntry[];
 
   // Filters
   claimStatusFilter: ClaimStatus | 'ALL';
@@ -45,6 +46,7 @@ interface RCMStore {
   // Actions
   acknowledgeEscalation: (id: string) => void;
   resolveEscalation: (id: string) => void;
+  addAuditEntry: (entry: AuditEntry) => void;
 }
 
 export const useRCMStore = create<RCMStore>((set) => ({
@@ -58,6 +60,7 @@ export const useRCMStore = create<RCMStore>((set) => ({
   escalations: ESCALATIONS,
   kpis: KPIS,
   recentActivities: INITIAL_ACTIVITIES,
+  auditEntries: AUDIT_ENTRIES,
 
   // Filters
   claimStatusFilter: 'ALL',
@@ -77,15 +80,57 @@ export const useRCMStore = create<RCMStore>((set) => ({
 
   // Actions
   acknowledgeEscalation: (id) =>
-    set((state) => ({
-      escalations: state.escalations.map((e) =>
-        e.id === id ? { ...e, status: 'ACKNOWLEDGED' as const } : e
-      ),
-    })),
+    set((state) => {
+      const escalation = state.escalations.find((e) => e.id === id);
+      const newAuditEntry: AuditEntry = {
+        id: `audit-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        action: 'ESCALATE',
+        actor: escalation?.assignedTo || 'System User',
+        actorRole: 'Staff',
+        claimNumber: escalation?.claimNumber,
+        agentName: escalation?.agentName,
+        details: `Escalation acknowledged for claim ${escalation?.claimNumber || id}. Reason: ${escalation?.reason || 'N/A'}`,
+        previousValue: 'PENDING',
+        newValue: 'ACKNOWLEDGED',
+        riskLevel: (escalation?.level || 1) >= 4 ? 'HIGH' : 'MEDIUM',
+        tags: ['ESCALATION_ACK'],
+      };
+      return {
+        escalations: state.escalations.map((e) =>
+          e.id === id ? { ...e, status: 'ACKNOWLEDGED' as const } : e
+        ),
+        auditEntries: [newAuditEntry, ...state.auditEntries],
+      };
+    }),
+
   resolveEscalation: (id) =>
+    set((state) => {
+      const escalation = state.escalations.find((e) => e.id === id);
+      const newAuditEntry: AuditEntry = {
+        id: `audit-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        action: 'RESOLVE',
+        actor: escalation?.assignedTo || 'System User',
+        actorRole: 'Staff',
+        claimNumber: escalation?.claimNumber,
+        agentName: escalation?.agentName,
+        details: `Escalation resolved for claim ${escalation?.claimNumber || id}. Reason: ${escalation?.reason || 'N/A'}`,
+        previousValue: escalation?.status || 'PENDING',
+        newValue: 'RESOLVED',
+        riskLevel: 'LOW',
+        tags: ['ESCALATION_RESOLVED'],
+      };
+      return {
+        escalations: state.escalations.map((e) =>
+          e.id === id ? { ...e, status: 'RESOLVED' as const, resolvedAt: new Date().toISOString() } : e
+        ),
+        auditEntries: [newAuditEntry, ...state.auditEntries],
+      };
+    }),
+
+  addAuditEntry: (entry) =>
     set((state) => ({
-      escalations: state.escalations.map((e) =>
-        e.id === id ? { ...e, status: 'RESOLVED' as const, resolvedAt: new Date().toISOString() } : e
-      ),
+      auditEntries: [entry, ...state.auditEntries],
     })),
 }));

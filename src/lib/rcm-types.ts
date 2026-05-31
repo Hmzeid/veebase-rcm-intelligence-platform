@@ -129,6 +129,21 @@ export interface WorkflowStage {
   timestamp?: string;
 }
 
+export interface AuditEntry {
+  id: string;
+  timestamp: string;
+  action: 'HITL_APPROVE' | 'HITL_REJECT' | 'ESCALATE' | 'RESOLVE' | 'SUBMIT_CLAIM' | 'APPEAL_FILED' | 'PAYMENT_DISPUTE' | 'PHASE_CHANGE' | 'AGENT_OVERRIDE';
+  actor: string;
+  actorRole: string;
+  claimNumber?: string;
+  agentName?: string;
+  details: string;
+  previousValue?: string;
+  newValue?: string;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  tags: string[];
+}
+
 // Pipeline stages in order
 export const PIPELINE_STAGES: ClaimStatus[] = [
   'ELIGIBILITY',

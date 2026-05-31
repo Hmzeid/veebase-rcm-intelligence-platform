@@ -8,9 +8,13 @@ import {
   DENIAL_BY_REASON,
   DAILY_CLAIMS_VOLUME,
   AGENT_ACTIVITY_DATA,
+  PAYER_MIX,
+  REVENUE_TREND_DATA,
+  CLAIMS_AGING_DATA,
 } from '@/lib/rcm-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   BarChart,
   Bar,
@@ -36,7 +40,13 @@ import {
   AlertTriangle,
   CheckCircle2,
   ArrowUpRight,
+  DollarSign,
+  Clock,
+  BarChart3,
+  Wallet,
+  Calendar,
 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 const KPI_STATUS_COLORS = {
   ON_TARGET: 'text-emerald-600 dark:text-emerald-400',
@@ -50,29 +60,149 @@ const TREND_COLORS = {
   DEGRADING: 'text-red-500',
 };
 
+type TimePeriod = 'week' | 'month' | 'quarter';
+
 export function AnalyticsView() {
-  const { kpis } = useRCMStore();
+  const { kpis, claims, agents } = useRCMStore();
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('month');
 
   const onTarget = kpis.filter((k) => k.status === 'ON_TARGET').length;
   const warning = kpis.filter((k) => k.status === 'WARNING').length;
   const offTarget = kpis.filter((k) => k.status === 'OFF_TARGET').length;
 
+  // Financial summary computed from claims
+  const financialSummary = useMemo(() => {
+    const totalBilled = claims.reduce((sum, c) => sum + c.totalAmount, 0);
+    const totalCollected = claims.reduce((sum, c) => sum + c.paidAmount, 0);
+    const collectionRate = totalBilled > 0 ? (totalCollected / totalBilled) * 100 : 0;
+
+    // AR Days: weighted average based on claim age
+    const now = new Date();
+    const totalWeightedDays = claims.reduce((sum, c) => {
+      const created = new Date(c.createdAt);
+      const days = Math.max(0, (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+      return sum + days * c.totalAmount;
+    }, 0);
+    const arDays = totalBilled > 0 ? totalWeightedDays / totalBilled : 0;
+
+    return { totalBilled, totalCollected, collectionRate, arDays };
+  }, [claims]);
+
+  // Compute claims aging from claims data
+  const claimsAging = useMemo(() => {
+    const now = new Date();
+    const buckets = [
+      { bucket: '0-30 Days', min: 0, max: 30, color: '#10b981' },
+      { bucket: '31-60 Days', min: 31, max: 60, color: '#f59e0b' },
+      { bucket: '61-90 Days', min: 61, max: 90, color: '#f97316' },
+      { bucket: '90+ Days', min: 91, max: Infinity, color: '#ef4444' },
+    ];
+
+    return buckets.map((b) => {
+      const matching = claims.filter((c) => {
+        const age = (now.getTime() - new Date(c.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+        return age >= b.min && age <= b.max;
+      });
+      return {
+        ...b,
+        count: matching.length,
+        amount: matching.reduce((sum, c) => sum + c.totalAmount, 0),
+      };
+    });
+  }, [claims]);
+
+  // Agent performance data for heatmap
+  const agentPerformance = useMemo(() => {
+    return agents.map((agent) => {
+      const errorRate = agent.claimsProcessed > 0
+        ? (agent.errorCount / agent.claimsProcessed) * 100
+        : 0;
+      const avgTimeSec = agent.avgProcessingMs / 1000;
+      return {
+        name: agent.displayName,
+        agentName: agent.agentName,
+        claimsProcessed: agent.claimsProcessed,
+        activeClaims: agent.activeClaims,
+        avgTime: avgTimeSec,
+        errorRate,
+      };
+    });
+  }, [agents]);
+
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-[1400px] mx-auto">
-      {/* Summary bar */}
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          <span className="text-sm font-medium">{onTarget} On Target</span>
+      {/* Header with Time Period Selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <span className="text-sm font-medium">{onTarget} On Target</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            <span className="text-sm font-medium">{warning} Warning</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-500" />
+            <span className="text-sm font-medium">{offTarget} Off Target</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-amber-500" />
-          <span className="text-sm font-medium">{warning} Warning</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-red-500" />
-          <span className="text-sm font-medium">{offTarget} Off Target</span>
-        </div>
+        <Tabs value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
+          <TabsList className="h-8">
+            <TabsTrigger value="week" className="text-xs px-3 h-7">
+              <Calendar className="w-3 h-3 mr-1" />
+              This Week
+            </TabsTrigger>
+            <TabsTrigger value="month" className="text-xs px-3 h-7">
+              <Calendar className="w-3 h-3 mr-1" />
+              This Month
+            </TabsTrigger>
+            <TabsTrigger value="quarter" className="text-xs px-3 h-7">
+              <Calendar className="w-3 h-3 mr-1" />
+              This Quarter
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* Financial Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <FinancialCard
+          title="Total Billed"
+          value={`EGP ${(financialSummary.totalBilled / 1000000).toFixed(2)}M`}
+          subtitle={`${claims.length} claims`}
+          icon={DollarSign}
+          trend="up"
+          trendValue="+12.3%"
+          color="emerald"
+        />
+        <FinancialCard
+          title="Total Collected"
+          value={`EGP ${(financialSummary.totalCollected / 1000000).toFixed(2)}M`}
+          subtitle={`${Math.round((financialSummary.totalCollected / financialSummary.totalBilled) * 100)}% of billed`}
+          icon={Wallet}
+          trend="up"
+          trendValue="+8.1%"
+          color="sky"
+        />
+        <FinancialCard
+          title="Collection Rate"
+          value={`${financialSummary.collectionRate.toFixed(1)}%`}
+          subtitle="Target: 96.0%"
+          icon={BarChart3}
+          trend={financialSummary.collectionRate >= 96 ? 'up' : 'down'}
+          trendValue={financialSummary.collectionRate >= 96 ? 'On Track' : 'Below Target'}
+          color={financialSummary.collectionRate >= 96 ? 'emerald' : 'amber'}
+        />
+        <FinancialCard
+          title="AR Days"
+          value={`${financialSummary.arDays.toFixed(1)}`}
+          subtitle="Target: ≤40 days"
+          icon={Clock}
+          trend={financialSummary.arDays <= 40 ? 'up' : 'down'}
+          trendValue={financialSummary.arDays <= 40 ? 'On Track' : 'Above Target'}
+          color={financialSummary.arDays <= 40 ? 'emerald' : 'red'}
+        />
       </div>
 
       {/* KPI Grid */}
@@ -82,7 +212,7 @@ export function AnalyticsView() {
         ))}
       </div>
 
-      {/* Charts Row 1 */}
+      {/* Charts Row 1: Denial Trend + Payer Mix Donut */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Denial Trend */}
         <Card>
@@ -107,6 +237,126 @@ export function AnalyticsView() {
           </CardContent>
         </Card>
 
+        {/* Payer Mix Donut Chart */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Payer Mix Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={PAYER_MIX}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={3}
+                    dataKey="value"
+                    label={({ name, value }) => `${name} ${value}%`}
+                  >
+                    {PAYER_MIX.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                    formatter={(value: number) => [`${value}%`, 'Share']}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+              {/* Center label */}
+              <div className="absolute pointer-events-none" style={{ transform: 'translate(-50%, -50%)', marginTop: '-10px' }}>
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{claims.length}</p>
+                  <p className="text-[10px] text-muted-foreground">Total Claims</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row 2: Revenue Trend Area Chart + Claims Aging */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Revenue Trend (Stacked Area Chart) */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Revenue Trend (6 Months)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={REVENUE_TREND_DATA} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `${(v / 1000000).toFixed(1)}M`} />
+                  <Tooltip
+                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                    formatter={(v: number) => `EGP ${(v / 1000000).toFixed(2)}M`}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <defs>
+                    <linearGradient id="nhiaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
+                    </linearGradient>
+                    <linearGradient id="privateGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
+                    </linearGradient>
+                    <linearGradient id="selfPayGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6b7280" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#6b7280" stopOpacity={0.05} />
+                    </linearGradient>
+                  </defs>
+                  <Area type="monotone" dataKey="nhia" name="NHIA" stackId="1" stroke="#10b981" fill="url(#nhiaGrad)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="private" name="Private TPAs" stackId="1" stroke="#f59e0b" fill="url(#privateGrad)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="selfPay" name="Self-Pay" stackId="1" stroke="#6b7280" fill="url(#selfPayGrad)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Claims Aging Analysis */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Claims Aging Analysis</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={claimsAging}
+                  layout="vertical"
+                  margin={{ top: 5, right: 20, bottom: 5, left: 10 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v: number) => `EGP ${(v / 1000).toFixed(0)}K`} />
+                  <YAxis type="category" dataKey="bucket" tick={{ fontSize: 10 }} width={80} />
+                  <Tooltip
+                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                    formatter={(v: number, _name: string, props: { payload: { count: number } }) =>
+                      [`EGP ${(v / 1000).toFixed(0)}K (${props.payload.count} claims)`, 'Amount']
+                    }
+                  />
+                  <Bar dataKey="amount" name="Amount" radius={[0, 4, 4, 0]}>
+                    {claimsAging.map((entry, index) => (
+                      <Cell key={`aging-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row 3: Revenue by Payer + Denial by Reason */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue by Payer */}
         <Card>
           <CardHeader className="pb-3">
@@ -128,10 +378,7 @@ export function AnalyticsView() {
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Denial by Reason */}
         <Card>
           <CardHeader className="pb-3">
@@ -162,7 +409,10 @@ export function AnalyticsView() {
             </div>
           </CardContent>
         </Card>
+      </div>
 
+      {/* Charts Row 4: Daily Volume + Agent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Daily Claims Volume */}
         <Card>
           <CardHeader className="pb-3">
@@ -185,30 +435,98 @@ export function AnalyticsView() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Agent Activity */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Agent Activity (Today)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={AGENT_ACTIVITY_DATA} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis dataKey="hour" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                  <defs>
+                    <linearGradient id="activityGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <Area type="monotone" dataKey="activity" name="Actions" stroke="#10b981" fill="url(#activityGrad)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Agent Activity */}
+      {/* Agent Performance Heatmap */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold">Agent Activity (Today)</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold">Agent Performance Heatmap</CardTitle>
+            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" /> Good</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-amber-500 inline-block" /> Moderate</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-500 inline-block" /> Concerning</span>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={AGENT_ACTIVITY_DATA} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="hour" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                <defs>
-                  <linearGradient id="activityGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="activity" name="Actions" stroke="#10b981" fill="url(#activityGrad)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Agent</th>
+                  <th className="text-right py-2 px-3 font-semibold text-muted-foreground">Claims Processed</th>
+                  <th className="text-right py-2 px-3 font-semibold text-muted-foreground">Active Claims</th>
+                  <th className="text-right py-2 px-3 font-semibold text-muted-foreground">Avg Time (s)</th>
+                  <th className="text-right py-2 px-3 font-semibold text-muted-foreground">Error Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agentPerformance.map((agent) => (
+                  <tr key={agent.agentName} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
+                    <td className="py-2.5 pr-4 font-medium">{agent.name}</td>
+                    <td className="py-2.5 px-3 text-right">
+                      <span className={cn(
+                        'inline-block px-2 py-0.5 rounded-md text-xs font-semibold',
+                        getClaimsProcessedColor(agent.claimsProcessed)
+                      )}>
+                        {agent.claimsProcessed.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <span className={cn(
+                        'inline-block px-2 py-0.5 rounded-md text-xs font-semibold',
+                        getActiveClaimsColor(agent.activeClaims)
+                      )}>
+                        {agent.activeClaims}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <span className={cn(
+                        'inline-block px-2 py-0.5 rounded-md text-xs font-semibold',
+                        getAvgTimeColor(agent.avgTime)
+                      )}>
+                        {agent.avgTime.toFixed(1)}s
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <span className={cn(
+                        'inline-block px-2 py-0.5 rounded-md text-xs font-semibold',
+                        getErrorRateColor(agent.errorRate)
+                      )}>
+                        {agent.errorRate.toFixed(1)}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
@@ -256,6 +574,98 @@ export function AnalyticsView() {
     </div>
   );
 }
+
+// ========== Helper functions for heatmap colors ==========
+
+function getClaimsProcessedColor(value: number): string {
+  if (value >= 800) return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200';
+  if (value >= 400) return 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200';
+  return 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200';
+}
+
+function getActiveClaimsColor(value: number): string {
+  if (value <= 5) return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200';
+  if (value <= 12) return 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200';
+  return 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200';
+}
+
+function getAvgTimeColor(value: number): string {
+  if (value <= 3) return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200';
+  if (value <= 5) return 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200';
+  return 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200';
+}
+
+function getErrorRateColor(value: number): string {
+  if (value <= 0.3) return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200';
+  if (value <= 1.0) return 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200';
+  return 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200';
+}
+
+// ========== Financial Summary Card ==========
+
+function FinancialCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  trend,
+  trendValue,
+  color,
+}: {
+  title: string;
+  value: string;
+  subtitle: string;
+  icon: React.ComponentType<{ className?: string }>;
+  trend: 'up' | 'down';
+  trendValue: string;
+  color: 'emerald' | 'sky' | 'amber' | 'red';
+}) {
+  const colorMap = {
+    emerald: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400',
+    sky: 'bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400',
+    amber: 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400',
+    red: 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400',
+  };
+
+  const iconBgMap = {
+    emerald: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400',
+    sky: 'bg-sky-100 dark:bg-sky-900/50 text-sky-600 dark:text-sky-400',
+    amber: 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400',
+    red: 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400',
+  };
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">{title}</p>
+            <p className="text-2xl font-bold">{value}</p>
+            <p className="text-[10px] text-muted-foreground">{subtitle}</p>
+          </div>
+          <div className={cn('p-2 rounded-lg', iconBgMap[color])}>
+            <Icon className="w-4 h-4" />
+          </div>
+        </div>
+        <div className="mt-2 flex items-center gap-1">
+          {trend === 'up' ? (
+            <TrendingUp className="w-3 h-3 text-emerald-500" />
+          ) : (
+            <TrendingDown className="w-3 h-3 text-red-500" />
+          )}
+          <span className={cn(
+            'text-[10px] font-medium',
+            trend === 'up' ? 'text-emerald-600' : 'text-red-600'
+          )}>
+            {trendValue}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ========== KPI Card ==========
 
 function AnalyticsKPICard({ kpi }: { kpi: KPIRecord }) {
   const trendIcon =
@@ -308,6 +718,8 @@ function AnalyticsKPICard({ kpi }: { kpi: KPIRecord }) {
     </Card>
   );
 }
+
+// ========== Root Cause Narrative ==========
 
 function RootCauseNarrative({
   kpi,
