@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRCMStore } from '@/lib/rcm-store';
+import { useI18n } from '@/lib/i18n';
 import type { NotificationPreferences } from '@/lib/rcm-store';
 import { PROHIBITED_ACTIONS } from '@/lib/rcm-data';
 import {
@@ -44,15 +45,6 @@ const PAYER_CONFIG = [
   { name: 'Self-Pay', mix: '15%', filingDays: 90, color: 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700' },
 ];
 
-const NOTIFICATION_KEYS: { key: keyof NotificationPreferences; label: string; icon: React.ElementType }[] = [
-  { key: 'claimsSubmitted', label: 'Claims Submitted', icon: FileDown },
-  { key: 'claimsPaid', label: 'Claims Paid', icon: CheckCircle2 },
-  { key: 'claimsDenied', label: 'Claims Denied', icon: ShieldAlert },
-  { key: 'escalationsRaised', label: 'Escalations Raised', icon: Bell },
-  { key: 'agentErrors', label: 'Agent Errors', icon: Zap },
-  { key: 'agentCompletions', label: 'Agent Completions', icon: RefreshCw },
-];
-
 export function SettingsView() {
   const {
     simulationSpeed,
@@ -66,7 +58,18 @@ export function SettingsView() {
     resetDemoData,
   } = useRCMStore();
 
+  const { t } = useI18n();
+
   const [phaseMode, setPhaseMode] = useState(1);
+
+  const NOTIFICATION_KEYS: { key: keyof NotificationPreferences; label: string; icon: React.ElementType }[] = [
+    { key: 'claimsSubmitted', label: t.settings.claimsSubmitted, icon: FileDown },
+    { key: 'claimsPaid', label: t.settings.claimsPaid, icon: CheckCircle2 },
+    { key: 'claimsDenied', label: t.settings.claimsDenied, icon: ShieldAlert },
+    { key: 'escalationsRaised', label: t.settings.escalationsRaised, icon: Bell },
+    { key: 'agentErrors', label: t.settings.agentErrors, icon: Zap },
+    { key: 'agentCompletions', label: t.settings.agentCompletions, icon: RefreshCw },
+  ];
 
   const handleExportAllCSV = () => {
     const headers = [
@@ -145,8 +148,8 @@ export function SettingsView() {
           <Settings className="w-5 h-5 text-muted-foreground" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold">Platform Settings</h2>
-          <p className="text-sm text-muted-foreground">Configure system behavior, rules, and preferences</p>
+          <h2 className="text-lg font-semibold">{t.settings.platformSettings}</h2>
+          <p className="text-sm text-muted-foreground">{t.settings.platformSettingsDesc}</p>
         </div>
       </div>
 
@@ -156,17 +159,17 @@ export function SettingsView() {
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-base">
               <Zap className="w-4 h-4 text-amber-500" />
-              System Configuration
+              {t.settings.systemConfig}
             </CardTitle>
-            <CardDescription>Control automation phase and system behavior</CardDescription>
+            <CardDescription>{t.settings.controlsAutomationLevel}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Phase Mode */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium">Phase Mode</p>
-                  <p className="text-xs text-muted-foreground">Controls automation level across all agents</p>
+                  <p className="text-sm font-medium">{t.settings.phaseMode}</p>
+                  <p className="text-xs text-muted-foreground">{t.settings.controlsAutomationLevel}</p>
                 </div>
                 <Badge
                   variant="outline"
@@ -178,14 +181,14 @@ export function SettingsView() {
                       : 'border-sky-300 text-sky-700 bg-sky-50 dark:bg-sky-950 dark:border-sky-800 dark:text-sky-300'
                   }
                 >
-                  Phase {phaseMode}
+                  {t.header.phase} {phaseMode}
                 </Badge>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { phase: 1, label: 'Assistive', desc: 'Human-in-the-loop' },
-                  { phase: 2, label: 'Supervised', desc: 'Conditional auto' },
-                  { phase: 3, label: 'Autonomous', desc: 'Full automation' },
+                  { phase: 1, label: t.settings.phase1Assistive, desc: t.settings.phase1Desc },
+                  { phase: 2, label: t.settings.phase2Supervised, desc: t.settings.phase2Desc },
+                  { phase: 3, label: t.settings.phase3Autonomous, desc: t.settings.phase3Desc },
                 ].map((p) => (
                   <button
                     key={p.phase}
@@ -196,7 +199,7 @@ export function SettingsView() {
                         : 'border-border hover:border-emerald-300 hover:bg-muted/50'
                     }`}
                   >
-                    <p className="text-sm font-semibold">Phase {p.phase}</p>
+                    <p className="text-sm font-semibold">{t.header.phase} {p.phase}</p>
                     <p className="text-[10px] text-muted-foreground">{p.label}</p>
                     <p className="text-[9px] text-muted-foreground mt-0.5">{p.desc}</p>
                   </button>
@@ -212,8 +215,8 @@ export function SettingsView() {
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Simulation Speed</p>
-                    <p className="text-xs text-muted-foreground">Agent simulation interval</p>
+                    <p className="text-sm font-medium">{t.settings.simulationSpeed}</p>
+                    <p className="text-xs text-muted-foreground">{t.settings.simulationSpeedDesc}</p>
                   </div>
                 </div>
                 <span className="text-sm font-mono font-semibold text-emerald-600 dark:text-emerald-400">
@@ -229,8 +232,8 @@ export function SettingsView() {
                 className="w-full"
               />
               <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>1s (Fast)</span>
-                <span>10s (Slow)</span>
+                <span>1s ({t.settings.fast})</span>
+                <span>10s ({t.settings.slow})</span>
               </div>
             </div>
 
@@ -241,8 +244,8 @@ export function SettingsView() {
               <div className="flex items-center gap-2">
                 <RefreshCw className="w-4 h-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">Auto-refresh Dashboard</p>
-                  <p className="text-xs text-muted-foreground">Automatically refresh live data</p>
+                  <p className="text-sm font-medium">{t.settings.autoRefresh}</p>
+                  <p className="text-xs text-muted-foreground">{t.settings.autoRefreshDesc}</p>
                 </div>
               </div>
               <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} />
@@ -255,9 +258,9 @@ export function SettingsView() {
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldAlert className="w-4 h-4 text-red-500" />
-              HITL Gate Rules
+              {t.settings.hitlGateRules}
             </CardTitle>
-            <CardDescription>Prohibited actions that are always enforced</CardDescription>
+            <CardDescription>{t.settings.hitlDesc}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {PROHIBITED_ACTIONS.map((action) => (
@@ -277,7 +280,7 @@ export function SettingsView() {
                       variant="outline"
                       className="text-[9px] h-4 border-red-300 text-red-700 dark:border-red-800 dark:text-red-400"
                     >
-                      ALWAYS
+                      {t.settings.alwaysEnforced}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
@@ -287,7 +290,7 @@ export function SettingsView() {
               </div>
             ))}
             <p className="text-[10px] text-muted-foreground text-center pt-1">
-              These rules cannot be disabled — they ensure compliance and safety at all automation phases.
+              {t.settings.rulesCannotDisable}
             </p>
           </CardContent>
         </Card>
@@ -297,9 +300,9 @@ export function SettingsView() {
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-base">
               <Bell className="w-4 h-4 text-sky-500" />
-              Notification Preferences
+              {t.settings.notifications}
             </CardTitle>
-            <CardDescription>Choose which events trigger real-time notifications</CardDescription>
+            <CardDescription>{t.settings.notificationsDesc}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {NOTIFICATION_KEYS.map(({ key, label, icon: Icon }) => (
@@ -324,9 +327,9 @@ export function SettingsView() {
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-base">
               <Building2 className="w-4 h-4 text-violet-500" />
-              Payer Configuration
+              {t.settings.payerConfig}
             </CardTitle>
-            <CardDescription>Current payer mix and timely filing defaults</CardDescription>
+            <CardDescription>{t.settings.payerDesc}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {PAYER_CONFIG.map((payer) => (
@@ -336,9 +339,9 @@ export function SettingsView() {
                     {payer.name}
                   </Badge>
                   <div>
-                    <p className="text-sm font-medium">{payer.mix} of claims</p>
+                    <p className="text-sm font-medium">{payer.mix} {t.settings.ofClaims}</p>
                     <p className="text-xs text-muted-foreground">
-                      Timely filing: <span className="font-medium">{payer.filingDays} days</span>
+                      {t.settings.timelyFiling}: <span className="font-medium">{payer.filingDays} {t.settings.days}</span>
                     </p>
                   </div>
                 </div>
@@ -350,7 +353,7 @@ export function SettingsView() {
             <div className="flex items-center gap-2 p-2 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900">
               <Edit3 className="w-3 h-3 text-amber-600 dark:text-amber-400" />
               <p className="text-[11px] text-amber-700 dark:text-amber-400">
-                Payer configuration is read-only in the current phase. Contact your administrator to request changes.
+                {t.settings.payerReadOnly}
               </p>
             </div>
           </CardContent>
@@ -361,9 +364,9 @@ export function SettingsView() {
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-base">
               <Database className="w-4 h-4 text-emerald-500" />
-              Data Management
+              {t.settings.dataManagement}
             </CardTitle>
-            <CardDescription>Export data and manage demo environment</CardDescription>
+            <CardDescription>{t.settings.dataDesc}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -371,10 +374,10 @@ export function SettingsView() {
               <div className="flex flex-col gap-3 p-4 rounded-lg border">
                 <div className="flex items-center gap-2">
                   <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <p className="text-sm font-medium">Export Claims Data</p>
+                  <p className="text-sm font-medium">{t.settings.exportClaimsData}</p>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Download all {claims.length} claims as a CSV file with full details.
+                  {t.settings.exportClaimsDesc}
                 </p>
                 <Button
                   variant="outline"
@@ -383,7 +386,7 @@ export function SettingsView() {
                   className="w-full gap-1.5"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Export All Data as CSV
+                  {t.settings.exportAllCsv}
                 </Button>
               </div>
 
@@ -391,10 +394,10 @@ export function SettingsView() {
               <div className="flex flex-col gap-3 p-4 rounded-lg border">
                 <div className="flex items-center gap-2">
                   <FileDown className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-                  <p className="text-sm font-medium">Export Audit Trail</p>
+                  <p className="text-sm font-medium">{t.settings.exportAuditCsv}</p>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Download all {auditEntries.length} audit entries as a CSV file for compliance.
+                  {t.settings.exportAuditDesc}
                 </p>
                 <Button
                   variant="outline"
@@ -403,7 +406,7 @@ export function SettingsView() {
                   className="w-full gap-1.5"
                 >
                   <FileDown className="w-3.5 h-3.5" />
-                  Export Audit Trail
+                  {t.settings.exportAuditCsv}
                 </Button>
               </div>
 
@@ -411,32 +414,32 @@ export function SettingsView() {
               <div className="flex flex-col gap-3 p-4 rounded-lg border border-red-200 dark:border-red-900 bg-red-50/30 dark:bg-red-950/10">
                 <div className="flex items-center gap-2">
                   <RotateCcw className="w-4 h-4 text-red-600 dark:text-red-400" />
-                  <p className="text-sm font-medium">Reset Demo Data</p>
+                  <p className="text-sm font-medium">{t.settings.resetDemo}</p>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Reset all data to initial demo state. This action cannot be undone.
+                  {t.settings.resetDemoDesc}
                 </p>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" size="sm" className="w-full gap-1.5">
                       <RotateCcw className="w-3.5 h-3.5" />
-                      Reset Demo Data
+                      {t.settings.resetDemo}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Reset Demo Data?</AlertDialogTitle>
+                      <AlertDialogTitle>{t.settings.resetDialogTitle}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will reset all claims, agents, escalations, audit entries, and settings back to their initial demo state. Any changes you have made will be permanently lost. This action cannot be undone.
+                        {t.settings.resetDialogDesc}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleResetDemoData}
                         className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
                       >
-                        Reset Data
+                        {t.settings.resetData}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

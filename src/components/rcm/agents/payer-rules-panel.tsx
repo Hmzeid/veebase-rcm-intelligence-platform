@@ -23,6 +23,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { BookOpen, Search, Clock, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 
 interface PayerRule {
   queryType: string;
@@ -219,6 +220,7 @@ export function PayerRulesPanel() {
   const [selectedPayer, setSelectedPayer] = useState<string>('ALL');
   const [selectedQueryType, setSelectedQueryType] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const { t } = useI18n();
 
   const filteredRules = PAYER_RULES_DB.filter((rule) => {
     const matchesPayer = selectedPayer === 'ALL' || rule.payerId === selectedPayer;
@@ -236,10 +238,10 @@ export function PayerRulesPanel() {
       <div>
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-emerald-600" />
-          Payer Contract & Rules Knowledge Base
+          {t.payerRules.subtitle}
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Query payer-specific fee schedules, authorization requirements, appeal rules, and coverage policies
+          {t.payerRules.description}
         </p>
       </div>
 
@@ -248,7 +250,7 @@ export function PayerRulesPanel() {
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search rules, CPT codes, descriptions..."
+            placeholder={t.payerRules.search}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 h-9"
@@ -259,7 +261,7 @@ export function PayerRulesPanel() {
             <SelectValue placeholder="Select payer" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All Payers</SelectItem>
+            <SelectItem value="ALL">{t.payerRules.allPayers}</SelectItem>
             <SelectItem value="NHIA">NHIA</SelectItem>
             <SelectItem value="MEDRIGHT">MedRight TPA</SelectItem>
             <SelectItem value="GLOBEMED">Globemed Egypt</SelectItem>
@@ -271,7 +273,7 @@ export function PayerRulesPanel() {
             <SelectValue placeholder="Rule type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All Rule Types</SelectItem>
+            <SelectItem value="ALL">{t.payerRules.allRuleTypes}</SelectItem>
             <SelectItem value="FEE_SCHEDULE">Fee Schedule</SelectItem>
             <SelectItem value="AUTH_REQUIRED">Authorization</SelectItem>
             <SelectItem value="TIMELY_FILING">Timely Filing</SelectItem>
@@ -292,7 +294,7 @@ export function PayerRulesPanel() {
             <CardContent className="p-8 text-center">
               <Info className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">
-                No rules found matching your filters. Try adjusting the payer or rule type.
+                {t.payerRules.noRulesFound}
               </p>
             </CardContent>
           </Card>
@@ -305,10 +307,9 @@ export function PayerRulesPanel() {
           <CardContent className="p-4 flex items-start gap-3">
             <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Stale Data Warning</p>
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">{t.payerRules.staleDataWarning}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Some payer contract data is more than 90 days old. These rules are flagged with a warning. 
-                Contact the billing team to request updated contract data from the payer.
+                {t.payerRules.staleDataDesc}
               </p>
             </div>
           </CardContent>

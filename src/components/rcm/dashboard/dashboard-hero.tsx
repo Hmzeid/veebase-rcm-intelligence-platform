@@ -3,10 +3,12 @@
 import { Badge } from '@/components/ui/badge';
 import { Shield, Activity, Zap, Clock } from 'lucide-react';
 import { useRCMStore } from '@/lib/rcm-store';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 export function DashboardHero() {
   const { agents, claims, escalations } = useRCMStore();
+  const { t } = useI18n();
   const activeAgents = agents.filter((a) => a.status === 'ACTIVE' || a.status === 'PROCESSING').length;
   const activeClaims = claims.filter((c) => !['PAID', 'CLOSED', 'WRITTEN_OFF'].includes(c.status)).length;
   const pendingEsc = escalations.filter((e) => e.status === 'PENDING').length;
@@ -27,32 +29,31 @@ export function DashboardHero() {
             <div className="flex items-center gap-2 mb-2">
               <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-500/30 text-[10px]">
                 <Activity className="w-3 h-3 mr-1" />
-                LIVE
+                {t.dashboard.live}
               </Badge>
               <Badge className="bg-amber-500/20 text-amber-200 border-amber-500/30 text-[10px]">
                 <Clock className="w-3 h-3 mr-1" />
-                Phase 1 — Assistive Mode
+                {t.dashboard.phase1}
               </Badge>
             </div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-              RCM Intelligence Platform
+              {t.dashboard.heroTitle}
             </h1>
             <p className="text-emerald-200/80 text-sm mt-2 leading-relaxed">
-              Provider-side Revenue Cycle Management with 12 specialized AI agents — monitoring claims from
-              eligibility verification through payment posting. Egypt · NHIA · HFCX · FHIR R4.
+              {t.dashboard.heroDesc}
             </p>
           </div>
 
           {/* Status indicators */}
           <div className="flex flex-col gap-2 md:items-end">
             <div className="flex items-center gap-6">
-              <StatusPill icon={Zap} label="Active Agents" value={`${activeAgents}/12`} color="emerald" />
-              <StatusPill icon={Activity} label="Live Claims" value={String(activeClaims)} color="sky" />
-              <StatusPill icon={Shield} label="Escalations" value={String(pendingEsc)} color={pendingEsc > 5 ? 'red' : 'amber'} />
+              <StatusPill icon={Zap} label={t.dashboard.activeAgents} value={`${activeAgents}/12`} color="emerald" />
+              <StatusPill icon={Activity} label={t.dashboard.liveClaims} value={String(activeClaims)} color="sky" />
+              <StatusPill icon={Shield} label={t.escalations.title} value={String(pendingEsc)} color={pendingEsc > 5 ? 'red' : 'amber'} />
             </div>
             <div className="flex items-center gap-2 mt-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-emerald-200/70">HFCX Connected · FHIR R4 · JWE Protected</span>
+              <span className="text-xs text-emerald-200/70">{t.dashboard.hfcxConnected}</span>
             </div>
           </div>
         </div>

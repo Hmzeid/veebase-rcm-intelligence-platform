@@ -1,6 +1,7 @@
 'use client';
 
 import { useRCMStore } from '@/lib/rcm-store';
+import { useI18n } from '@/lib/i18n';
 import { AgentOutput, AppealStrategy, ClaimRecord, ClaimStatus, ConfidenceLevel, STATUS_COLORS, PIPELINE_STAGES } from '@/lib/rcm-types';
 import { CLAIM_AGENT_OUTPUTS, APPEAL_STRATEGIES } from '@/lib/rcm-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -113,6 +114,7 @@ const strategyIcons: Record<string, React.ElementType> = {
 
 export function ClaimsView() {
   const { claims, claimStatusFilter, setClaimStatusFilter, claimSearchQuery, setClaimSearchQuery, selectedClaim, setSelectedClaim } = useRCMStore();
+  const { t } = useI18n();
 
   const filteredClaims = claims.filter((claim) => {
     const matchesStatus = claimStatusFilter === 'ALL' || claim.status === claimStatusFilter;
@@ -131,7 +133,7 @@ export function ClaimsView() {
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search claims, patients, payers..."
+            placeholder={t.claims.search}
             value={claimSearchQuery}
             onChange={(e) => setClaimSearchQuery(e.target.value)}
             className="pl-8 h-9"
@@ -142,10 +144,10 @@ export function ClaimsView() {
           onValueChange={(v) => setClaimStatusFilter(v as ClaimStatus | 'ALL')}
         >
           <SelectTrigger className="w-full sm:w-48 h-9">
-            <SelectValue placeholder="Filter by status" />
+            <SelectValue placeholder={t.claims.filterStatus} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All Statuses</SelectItem>
+            <SelectItem value="ALL">{t.claims.allStatuses}</SelectItem>
             {PIPELINE_STAGES.map((stage) => (
               <SelectItem key={stage} value={stage}>
                 {statusLabels[stage]}
@@ -173,22 +175,22 @@ export function ClaimsView() {
           {filteredClaims.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-4">
               <FileText className="w-12 h-12 text-muted-foreground/40 mb-4" />
-              <p className="text-sm font-semibold text-muted-foreground">No claims found matching your filters</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">Try adjusting your search or status filter</p>
+              <p className="text-sm font-semibold text-muted-foreground">{t.claims.noClaimsFound}</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">{t.claims.tryAdjusting}</p>
             </div>
           ) : (
           <ScrollArea className="max-h-[600px]">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs">Claim #</TableHead>
-                  <TableHead className="text-xs">Patient</TableHead>
-                  <TableHead className="text-xs hidden md:table-cell">Payer</TableHead>
-                  <TableHead className="text-xs">Status</TableHead>
-                  <TableHead className="text-xs text-right">Amount</TableHead>
-                  <TableHead className="text-xs hidden lg:table-cell">Readiness</TableHead>
-                  <TableHead className="text-xs hidden lg:table-cell">Risk</TableHead>
-                  <TableHead className="text-xs hidden md:table-cell">Service Date</TableHead>
+                  <TableHead className="text-xs">{t.claims.claimNumber}</TableHead>
+                  <TableHead className="text-xs">{t.claims.patient}</TableHead>
+                  <TableHead className="text-xs hidden md:table-cell">{t.claims.payer}</TableHead>
+                  <TableHead className="text-xs">{t.claims.status}</TableHead>
+                  <TableHead className="text-xs text-right">{t.claims.amount}</TableHead>
+                  <TableHead className="text-xs hidden lg:table-cell">{t.claims.readiness}</TableHead>
+                  <TableHead className="text-xs hidden lg:table-cell">{t.claims.risk}</TableHead>
+                  <TableHead className="text-xs hidden md:table-cell">{t.claims.serviceDate}</TableHead>
                   <TableHead className="w-8"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -335,6 +337,7 @@ function ClaimRow({ claim, onClick }: { claim: ClaimRecord; onClick: () => void 
 }
 
 function ClaimDetail({ claim }: { claim: ClaimRecord }) {
+  const { t } = useI18n();
   const statusIdx = PIPELINE_STAGES.indexOf(claim.status as ClaimStatus);
 
   // Get agent outputs for this claim
@@ -362,8 +365,8 @@ function ClaimDetail({ claim }: { claim: ClaimRecord }) {
 
       {/* Patient & Payer Info */}
       <div className="grid grid-cols-2 gap-4">
-        <InfoBox icon={Shield} label="Patient" value={claim.patientName} sub={`ID: ${claim.nationalId}`} />
-        <InfoBox icon={DollarSign} label="Payer" value={claim.payerName} sub={claim.payerType} />
+        <InfoBox icon={Shield} label={t.claims.patient} value={claim.patientName} sub={`ID: ${claim.nationalId}`} />
+        <InfoBox icon={DollarSign} label={t.claims.payer} value={claim.payerName} sub={claim.payerType} />
       </div>
 
       {/* Financial Summary */}
@@ -372,15 +375,15 @@ function ClaimDetail({ claim }: { claim: ClaimRecord }) {
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-lg font-bold">EGP {claim.totalAmount.toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground">Billed</p>
+              <p className="text-[10px] text-muted-foreground">{t.claims.billed}</p>
             </div>
             <div>
               <p className="text-lg font-bold text-emerald-600">EGP {claim.paidAmount.toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground">Paid</p>
+              <p className="text-[10px] text-muted-foreground">{t.claims.paid}</p>
             </div>
             <div>
               <p className="text-lg font-bold text-amber-600">EGP {claim.patientResponsibility.toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground">Patient Responsibility</p>
+              <p className="text-[10px] text-muted-foreground">{t.claims.patientResponsibility}</p>
             </div>
           </div>
         </CardContent>
@@ -388,7 +391,7 @@ function ClaimDetail({ claim }: { claim: ClaimRecord }) {
 
       {/* Workflow Progress */}
       <div>
-        <p className="text-xs font-semibold text-muted-foreground mb-2">Workflow Progress</p>
+        <p className="text-xs font-semibold text-muted-foreground mb-2">{t.claims.workflowProgress}</p>
         <div className="flex items-center gap-0.5 overflow-x-auto pb-2">
           {PIPELINE_STAGES.map((stage, idx) => (
             <div key={stage} className="flex items-center gap-0.5">
@@ -422,7 +425,7 @@ function ClaimDetail({ claim }: { claim: ClaimRecord }) {
       {/* Scores */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <p className="text-xs font-semibold text-muted-foreground mb-1">Claim Readiness</p>
+          <p className="text-xs font-semibold text-muted-foreground mb-1">{t.claims.claimReadiness}</p>
           <div className="flex items-center gap-2">
             <Progress
               value={claim.readinessScore}
@@ -437,7 +440,7 @@ function ClaimDetail({ claim }: { claim: ClaimRecord }) {
           </div>
         </div>
         <div>
-          <p className="text-xs font-semibold text-muted-foreground mb-1">Denial Risk</p>
+          <p className="text-xs font-semibold text-muted-foreground mb-1">{t.claims.denialRisk}</p>
           <div className="flex items-center gap-2">
             <Progress
               value={claim.denialRiskScore}
@@ -484,7 +487,7 @@ function ClaimDetail({ claim }: { claim: ClaimRecord }) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-xs font-semibold">Prior Authorization</span>
+                <span className="text-xs font-semibold">{t.claims.priorAuth}</span>
               </div>
               <Badge
                 variant="outline"
@@ -525,7 +528,7 @@ function ClaimDetail({ claim }: { claim: ClaimRecord }) {
 
       {/* HITL Gate */}
       <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-        <span className="text-xs font-semibold">HITL Gate</span>
+        <span className="text-xs font-semibold">{t.claims.hitlGate}</span>
         <Badge
           variant="outline"
           className={cn(
@@ -561,9 +564,9 @@ function ProcessingTimeline({ outputs, claimAmount }: { outputs: AgentOutput[]; 
     <div>
       <div className="flex items-center gap-2 mb-3">
         <GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
-        <p className="text-xs font-semibold text-muted-foreground">Processing Timeline</p>
+        <p className="text-xs font-semibold text-muted-foreground">{t.claims.processingTimeline}</p>
         <Badge variant="outline" className="text-[9px] h-4 border-sky-300 text-sky-700 bg-sky-50 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800">
-          {outputs.length} agent outputs
+          {outputs.length} {t.claims.agentOutputs}
         </Badge>
       </div>
 
@@ -968,9 +971,9 @@ function AppealStrategyPanel({ claim, recommendedStrategyKey }: { claim: ClaimRe
     <div>
       <div className="flex items-center gap-2 mb-3">
         <RotateCcw className="w-3.5 h-3.5 text-red-500" />
-        <p className="text-xs font-semibold text-muted-foreground">Appeal Strategies</p>
+        <p className="text-xs font-semibold text-muted-foreground">{t.claims.appealStrategies}</p>
         <Badge variant="outline" className="text-[9px] h-4 border-red-300 text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-300 dark:border-red-800">
-          Denied Claim
+          {t.claims.deniedClaim}
         </Badge>
       </div>
 
@@ -991,10 +994,10 @@ function AppealStrategyPanel({ claim, recommendedStrategyKey }: { claim: ClaimRe
           <Clock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
           <div>
             <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
-              Appeal Deadline: {format(new Date(claim.appealDeadline), 'MMM d, yyyy')}
+              {t.claims.appealDeadline}: {format(new Date(claim.appealDeadline), 'MMM d, yyyy')}
             </p>
             <p className="text-[10px] text-amber-700 dark:text-amber-400">
-              File appeal before this date to preserve recovery rights.
+              {t.claims.fileBefore}
             </p>
           </div>
         </div>

@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import { ClaimRecord, ClaimStatus, AgentRecord, EscalationRecord, KPIRecord, AuditEntry } from './rcm-types';
-import { AGENTS, CLAIMS, ESCALATIONS, KPIS, INITIAL_ACTIVITIES, AUDIT_ENTRIES } from './rcm-data';
+import { ClaimRecord, ClaimStatus, AgentRecord, EscalationRecord, KPIRecord, AuditEntry, IngestedPDF, IngestionStatus } from './rcm-types';
+import { AGENTS, CLAIMS, ESCALATIONS, KPIS, INITIAL_ACTIVITIES, AUDIT_ENTRIES, INGESTED_PDFS, HOSPITAL_TEMPLATES } from './rcm-data';
 
-export type ViewMode = 'dashboard' | 'agents' | 'claims' | 'escalations' | 'analytics' | 'chat' | 'payer-rules' | 'audit' | 'settings';
+export type ViewMode = 'dashboard' | 'agents' | 'claims' | 'escalations' | 'analytics' | 'chat' | 'payer-rules' | 'audit' | 'settings' | 'ingestion';
 
 export interface NotificationPreferences {
   claimsSubmitted: boolean;
@@ -35,6 +35,7 @@ interface RCMStore {
   kpis: KPIRecord[];
   recentActivities: ActivityItem[];
   auditEntries: AuditEntry[];
+  ingestedPDFs: IngestedPDF[];
 
   // Filters
   claimStatusFilter: ClaimStatus | 'ALL';
@@ -66,6 +67,11 @@ interface RCMStore {
   resolveEscalation: (id: string) => void;
   addAuditEntry: (entry: AuditEntry) => void;
   resetDemoData: () => void;
+
+  // Ingestion actions
+  addIngestedPDF: (pdf: IngestedPDF) => void;
+  updateIngestedPDF: (id: string, updates: Partial<IngestedPDF>) => void;
+  removeIngestedPDF: (id: string) => void;
 }
 
 export const useRCMStore = create<RCMStore>((set) => ({
@@ -80,6 +86,7 @@ export const useRCMStore = create<RCMStore>((set) => ({
   kpis: KPIS,
   recentActivities: INITIAL_ACTIVITIES,
   auditEntries: AUDIT_ENTRIES,
+  ingestedPDFs: INGESTED_PDFS,
 
   // Filters
   claimStatusFilter: 'ALL',
@@ -181,6 +188,7 @@ export const useRCMStore = create<RCMStore>((set) => ({
       kpis: KPIS,
       recentActivities: INITIAL_ACTIVITIES,
       auditEntries: AUDIT_ENTRIES,
+      ingestedPDFs: INGESTED_PDFS,
       claimStatusFilter: 'ALL',
       claimSearchQuery: '',
       escalationLevelFilter: 'ALL',
@@ -198,4 +206,21 @@ export const useRCMStore = create<RCMStore>((set) => ({
         agentCompletions: true,
       },
     }),
+
+  addIngestedPDF: (pdf) =>
+    set((state) => ({
+      ingestedPDFs: [pdf, ...state.ingestedPDFs],
+    })),
+
+  updateIngestedPDF: (id, updates) =>
+    set((state) => ({
+      ingestedPDFs: state.ingestedPDFs.map((p) =>
+        p.id === id ? { ...p, ...updates } : p
+      ),
+    })),
+
+  removeIngestedPDF: (id) =>
+    set((state) => ({
+      ingestedPDFs: state.ingestedPDFs.filter((p) => p.id !== id),
+    })),
 }));

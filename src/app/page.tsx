@@ -1,6 +1,7 @@
 'use client';
 
 import { useRCMStore } from '@/lib/rcm-store';
+import { I18nProvider, useI18n } from '@/lib/i18n';
 import { SidebarNav, MobileNav } from '@/components/rcm/layout/sidebar-nav';
 import { Header } from '@/components/rcm/layout/header';
 import { CommandPalette } from '@/components/rcm/layout/command-palette';
@@ -13,6 +14,7 @@ import { AnalyticsView } from '@/components/rcm/analytics/analytics-view';
 import { PayerRulesPanel } from '@/components/rcm/agents/payer-rules-panel';
 import { ChatView } from '@/components/rcm/chat/chat-view';
 import { SettingsView } from '@/components/rcm/settings/settings-view';
+import { IngestionView } from '@/components/rcm/ingestion/ingestion-view';
 import { NotificationSystem } from '@/components/rcm/layout/notification-system';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -20,6 +22,7 @@ const viewMap: Record<string, React.ComponentType> = {
   dashboard: DashboardView,
   agents: AgentsView,
   claims: ClaimsView,
+  ingestion: IngestionView,
   escalations: EscalationsView,
   audit: AuditView,
   'payer-rules': PayerRulesPanel,
@@ -28,12 +31,13 @@ const viewMap: Record<string, React.ComponentType> = {
   settings: SettingsView,
 };
 
-export default function Home() {
+function AppContent() {
   const { activeView } = useRCMStore();
+  const { dir } = useI18n();
   const ActiveView = viewMap[activeView] ?? DashboardView;
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-background">
+    <div className="min-h-screen flex flex-col md:flex-row bg-background" dir={dir}>
       {/* Sidebar */}
       <SidebarNav />
 
@@ -65,5 +69,13 @@ export default function Home() {
       {/* Real-time notification toasts */}
       <NotificationSystem />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <I18nProvider>
+      <AppContent />
+    </I18nProvider>
   );
 }

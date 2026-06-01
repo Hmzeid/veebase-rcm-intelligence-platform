@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRCMStore } from '@/lib/rcm-store';
+import { useI18n } from '@/lib/i18n';
 import type { AuditEntry } from '@/lib/rcm-types';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -67,6 +68,7 @@ const RISK_BADGE_COLORS: Record<AuditEntry['riskLevel'], string> = {
 
 export function AuditView() {
   const { auditEntries } = useRCMStore();
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('ALL');
   const [riskFilter, setRiskFilter] = useState<string>('ALL');
@@ -157,7 +159,7 @@ export function AuditView() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.total}</p>
-                <p className="text-xs text-muted-foreground">Total Entries</p>
+                <p className="text-xs text-muted-foreground">{t.audit.totalEntries}</p>
               </div>
             </div>
           </CardContent>
@@ -171,7 +173,7 @@ export function AuditView() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.critical}</p>
-                <p className="text-xs text-muted-foreground">Critical Events</p>
+                <p className="text-xs text-muted-foreground">{t.audit.criticalEvents}</p>
               </div>
             </div>
           </CardContent>
@@ -185,7 +187,7 @@ export function AuditView() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.hitlDecisions}</p>
-                <p className="text-xs text-muted-foreground">HITL Decisions</p>
+                <p className="text-xs text-muted-foreground">{t.audit.hitlDecisions}</p>
               </div>
             </div>
           </CardContent>
@@ -199,7 +201,7 @@ export function AuditView() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.pendingReviews}</p>
-                <p className="text-xs text-muted-foreground">Pending Reviews</p>
+                <p className="text-xs text-muted-foreground">{t.audit.pendingReviews}</p>
               </div>
             </div>
           </CardContent>
@@ -274,12 +276,12 @@ export function AuditView() {
             <div className="flex gap-2">
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={handleClearFilters} className="h-9">
-                  Clear
+                  {t.audit.clearFilters}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={handleExport} className="h-9 gap-1.5">
                 <Download className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Export</span>
+                <span className="hidden md:inline">{t.audit.export}</span>
               </Button>
             </div>
           </div>
@@ -322,7 +324,7 @@ export function AuditView() {
           {filteredEntries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-4">
               <ClipboardList className="w-12 h-12 text-muted-foreground/40 mb-4" />
-              <p className="text-sm font-semibold text-muted-foreground">No audit entries match your criteria</p>
+              <p className="text-sm font-semibold text-muted-foreground">{t.audit.noEntries}</p>
               <p className="text-xs text-muted-foreground/70 mt-1">Try adjusting your filters or search query</p>
             </div>
           ) : (

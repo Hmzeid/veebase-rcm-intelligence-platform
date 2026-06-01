@@ -1,8 +1,9 @@
 'use client';
 
 import { useRCMStore } from '@/lib/rcm-store';
+import { useI18n } from '@/lib/i18n';
 import { useTheme } from 'next-themes';
-import { Bell, Search, Shield, Moon, Sun } from 'lucide-react';
+import { Bell, Search, Shield, Moon, Sun, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -14,22 +15,24 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 
-const viewTitles: Record<string, string> = {
-  dashboard: 'Operations Dashboard',
-  agents: 'Agent Fleet',
-  claims: 'Claims Pipeline',
-  escalations: 'Escalation Queue',
-  audit: 'Compliance Audit Trail',
-  'payer-rules': 'Payer Contract & Rules',
-  analytics: 'Analytics & Reporting',
-  chat: 'AI Assistant',
-  settings: 'Settings',
-};
-
 export function Header() {
   const { activeView, escalations, setActiveView } = useRCMStore();
+  const { t, locale, setLocale } = useI18n();
   const { theme, setTheme } = useTheme();
   const pendingEsc = escalations.filter((e) => e.status === 'PENDING');
+
+  const viewTitles: Record<string, string> = {
+    dashboard: t.dashboard.title,
+    agents: t.agents.title,
+    claims: t.claims.title,
+    ingestion: t.ingestion.title,
+    escalations: t.escalations.title,
+    audit: t.audit.title,
+    'payer-rules': t.payerRules.title,
+    analytics: t.analytics.title,
+    chat: t.chat.title,
+    settings: t.settings.platformSettings,
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-md border-b">
@@ -59,7 +62,7 @@ export function Header() {
             }}
           >
             <Search className="h-3.5 w-3.5" />
-            <span className="text-xs">Search...</span>
+            <span className="text-xs">{t.header.search}</span>
             <kbd className="ml-2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
               <span className="text-xs">⌘</span>K
             </kbd>
@@ -79,13 +82,25 @@ export function Header() {
             <Search className="h-4 w-4" />
           </Button>
 
+          {/* Language toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 gap-1.5 text-muted-foreground hover:text-foreground"
+            onClick={() => setLocale(locale === 'en' ? 'ar' : 'en')}
+            aria-label={locale === 'en' ? 'Switch to Arabic' : 'التبديل إلى الإنجليزية'}
+          >
+            <Globe className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">{locale === 'en' ? t.header.langAr : t.header.langEn}</span>
+          </Button>
+
           {/* Dark mode toggle */}
           <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            aria-label="Toggle dark mode"
+            aria-label={t.header.darkMode}
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -105,9 +120,9 @@ export function Header() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel className="flex items-center justify-between">
-                <span>Escalations</span>
+                <span>{t.escalations.title}</span>
                 <Badge variant="destructive" className="text-[10px]">
-                  {pendingEsc.length} pending
+                  {pendingEsc.length} {t.escalations.pending.toLowerCase()}
                 </Badge>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -142,7 +157,7 @@ export function Header() {
                     onClick={() => setActiveView('escalations')}
                     className="text-center text-xs text-emerald-600 cursor-pointer"
                   >
-                    View all {pendingEsc.length} escalations
+                    {t.common.view} {pendingEsc.length} {t.escalations.title.toLowerCase()}
                   </DropdownMenuItem>
                 </>
               )}
@@ -154,7 +169,7 @@ export function Header() {
             variant="outline"
             className="hidden md:flex text-[10px] h-6 border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-300"
           >
-            Phase 1
+            {t.header.phase} 1
           </Badge>
         </div>
       </div>

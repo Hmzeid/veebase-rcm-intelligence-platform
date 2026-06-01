@@ -1,6 +1,7 @@
 'use client';
 
 import { useRCMStore } from '@/lib/rcm-store';
+import { useI18n } from '@/lib/i18n';
 import { AgentRecord, AgentStatusType, AgentCategory } from '@/lib/rcm-types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -36,11 +37,11 @@ const iconMap: Record<string, React.ElementType> = {
   BarChart3,
 };
 
-const statusLabels: Record<AgentStatusType, string> = {
-  ACTIVE: 'Active',
-  IDLE: 'Idle',
-  ERROR: 'Error',
-  PROCESSING: 'Processing',
+const statusLabels: Record<AgentStatusType, Record<string, string>> = {
+  ACTIVE: { en: 'Active', ar: 'نشط' },
+  IDLE: { en: 'Idle', ar: 'خامل' },
+  ERROR: { en: 'Error', ar: 'خطأ' },
+  PROCESSING: { en: 'Processing', ar: 'يعالج' },
 };
 
 const statusDotColors: Record<AgentStatusType, string> = {
@@ -59,6 +60,7 @@ const categoryColors: Record<AgentCategory, string> = {
 
 export function AgentStatusGrid() {
   const { agents, setActiveView, setSelectedAgent } = useRCMStore();
+  const { t, locale } = useI18n();
 
   const linearAgents = agents.filter((a) => a.category === 'LINEAR');
   const sentinelAgents = agents.filter((a) => a.category === 'SENTINEL');
@@ -68,19 +70,19 @@ export function AgentStatusGrid() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-muted-foreground">Agent Fleet Status</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground">{t.dashboard.agentFleetStatus}</h3>
         <button
           onClick={() => setActiveView('agents')}
           className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
         >
-          View All →
+          {t.dashboard.viewAll} →
         </button>
       </div>
 
       {/* Workflow Pipeline */}
       <div>
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-semibold">
-          Linear Workflow
+          {t.dashboard.linearWorkflow}
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {linearAgents.map((agent, idx) => (
@@ -100,7 +102,7 @@ export function AgentStatusGrid() {
       {/* Cross-cutting agents */}
       <div>
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-semibold">
-          Cross-cutting
+          {t.dashboard.crossCutting}
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {sentinelAgents.map((agent) => (
@@ -147,7 +149,9 @@ function AgentMiniCard({
   showArrow?: boolean;
   onClick: () => void;
 }) {
+  const { locale } = useI18n();
   const Icon = iconMap[agent.icon] || ShieldCheck;
+  const statusLabel = statusLabels[agent.status]?.[locale] || statusLabels[agent.status]?.en || agent.status;
 
   return (
     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
@@ -170,18 +174,18 @@ function AgentMiniCard({
             <div className="flex items-center gap-1">
               <span className={cn('w-1.5 h-1.5 rounded-full', statusDotColors[agent.status])} />
               <span className="text-[9px] text-muted-foreground font-medium">
-                {statusLabels[agent.status]}
+                {statusLabel}
               </span>
             </div>
           </div>
           <p className="text-xs font-semibold mt-2 leading-tight">{agent.displayName}</p>
           <div className="flex items-center gap-2 mt-1.5">
             <span className="text-[10px] text-muted-foreground">
-              {agent.claimsProcessed} processed
+              {agent.claimsProcessed} {locale === 'ar' ? 'معالجة' : 'processed'}
             </span>
             {agent.activeClaims > 0 && (
               <Badge variant="secondary" className="text-[9px] h-4 px-1">
-                {agent.activeClaims} active
+                {agent.activeClaims} {locale === 'ar' ? 'نشطة' : 'active'}
               </Badge>
             )}
           </div>

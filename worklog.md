@@ -637,3 +637,143 @@ Stage Summary:
 - Agents API GET now reads from DB first with mock data fallback
 - Database successfully seeded with all mock data (12 agents, 25 claims, 10 escalations, 12 KPIs)
 - Lint passes cleanly, dev server stable on port 3000
+
+---
+Task ID: 1+2+3+6
+Agent: Ingestion Pipeline Builder
+Task: Build PDF Claim Ingestion Pipeline for Veebase RCM Intelligence Platform
+
+Work Log:
+- Read worklog.md and all existing project files (rcm-types.ts, rcm-data.ts, rcm-store.ts, sidebar-nav.tsx, header.tsx, page.tsx)
+- Updated /src/lib/rcm-types.ts — Added 3 new interfaces and 1 new type:
+  - IngestionStatus: 7 states (UPLOADING, PENDING, EXTRACTING, EXTRACTED, REVIEWING, SUBMITTED, FAILED)
+  - IngestedPDF: 10 fields including extractedData, extractionConfidence, source, pageCount
+  - ExtractedClaimData: 17 fields including patientName, nationalId, payerName, procedureCodes, diagnosisCodes, fieldConfidence
+  - HospitalTemplate: 8 fields including nameAr, fieldMappings, extractionHints
+- Updated /src/lib/rcm-data.ts — Added 2 new data exports:
+  - HOSPITAL_TEMPLATES: 4 templates (Auto-Detect, Cairo Medical Center, NHIA Standard, Alexandria General) with Arabic names, field mappings, and extraction hints
+  - INGESTED_PDFS: 5 sample PDFs covering all statuses (EXTRACTED, SUBMITTED, EXTRACTING, PENDING, FAILED) with varied sources (virtual printer, watch folder, upload)
+- Updated /src/lib/rcm-store.ts — Extended store with ingestion capabilities:
+  - Added 'ingestion' to ViewMode type union
+  - Added ingestedPDFs state initialized with INGESTED_PDFS
+  - Added addIngestedPDF, updateIngestedPDF, removeIngestedPDF actions
+  - Updated resetDemoData to include ingestedPDFs reset
+- Created /src/components/rcm/ingestion/ingestion-view.tsx — Full ingestion hub view with 5 sections:
+  1. Pipeline Visualization Banner: 4-stage pipeline (Upload → Extract → Review → Submit) with live counts and failed indicator, pulse animation on active Extract stage
+  2. Integration Methods Cards: 3 cards (Virtual Printer with Configure dialog, Watch Folder with path input, API Endpoint with copy button)
+  3. PDF Upload Dropzone: Drag-and-drop area with template selector, Upload & Extract button, file type validation, simulated pipeline progression (UPLOADING → PENDING → EXTRACTING → EXTRACTED)
+  4. Processing Queue Table: Sortable table with file info, source badges, template, status badges, confidence progress bars, time ago, action buttons (Review, Retry, Delete)
+  5. Extraction Detail Sheet: Right-side Sheet with document preview (simulated claim form) and editable extraction form
+     - ExtractionField sub-component with confidence indicators (green≥90, amber≥70, red<70)
+     - 12 editable fields: Patient Name, National ID, Payer (5 options), Service Date, Total Amount, Department, Procedure Codes, Diagnosis Codes, Prior Auth Required/Number, Physician, Facility, Encounter Type
+     - Bottom actions: Submit as Claim, Save & Review Later, Reject
+- Created /src/app/api/ingest/route.ts — PDF processing API endpoint:
+  - POST endpoint accepting FormData with PDF file and template parameter
+  - VLM-based extraction using z-ai-web-dev-sdk with Egypt-specific medical claims prompts
+  - VLM prompt includes Arabic term recognition, 14-digit national ID rules, EGP currency, field-level confidence scoring
+  - Fallback: Template-based extraction with per-template placeholder data when VLM unavailable
+  - Graceful error handling with JSON error responses
+- Updated /src/components/rcm/layout/sidebar-nav.tsx — Added Ingestion Hub nav item:
+  - Printer icon from lucide-react, positioned after Claims Pipeline
+  - Uses existing i18n labelKey pattern ('ingestion')
+- Updated /src/components/rcm/layout/header.tsx — Added ingestion view title
+  - 'ingestion': t.ingestion.title (from existing i18n translations)
+- Updated /src/app/page.tsx — Added IngestionView rendering:
+  - Imported IngestionView from ingestion/ingestion-view
+  - Added 'ingestion': IngestionView to viewMap
+- Wired up "Submit as Claim" action in ingestion-view.tsx:
+  - Creates new ClaimRecord from extracted data with auto-generated claim number
+  - Starts at ELIGIBILITY status with EligibilityBenefits agent, REVIEW hitl gate
+  - Auto-tags: PDF_INGESTED, LOW_CONFIDENCE (if confidence < 70)
+  - Calls addClaim from store, updateIngestedPDF status to SUBMITTED
+  - Shows success toast and navigates to claims view
+- Ran bun run lint — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- PDF Claim Ingestion Pipeline with 5 integrated sections
+- VLM-powered data extraction with z-ai-web-dev-sdk and template-based fallback
+- 4 hospital system templates with Arabic names and field mappings
+- Drag-and-drop upload with simulated pipeline progression
+- Extraction detail Sheet with 12 editable fields and per-field confidence indicators
+- "Submit as Claim" creates real ClaimRecord in store and navigates to claims view
+- 10 views total: Dashboard, Agents, Claims, Ingestion Hub, Escalations, Audit Trail, Payer Rules, Analytics, AI Chat, Settings
+- Lint passes cleanly, dev server stable on port 3000
+
+---
+Task ID: 4+5
+Agent: i18n & RTL Builder
+Task: Build complete i18n system with Arabic language support and RTL layout
+
+Work Log:
+- Read worklog.md and all existing project files (page.tsx, header.tsx, sidebar-nav.tsx, dashboard-view.tsx, claims-view.tsx, settings-view.tsx, escalations-view.tsx, audit-view.tsx, analytics-view.tsx, payer-rules-panel.tsx, kpi-cards.tsx, dashboard-hero.tsx, agent-status-grid.tsx)
+- Created /src/lib/i18n/translations/en.ts — Complete English translation file with 250+ strings organized by section: appName, nav, header, dashboard, agents, claims, escalations, audit, payerRules, analytics, chat, settings, ingestion, common
+- Created /src/lib/i18n/translations/ar.ts — Complete Arabic translation file with the same structure, all strings translated to proper Arabic using medical/financial Arabic terminology (e.g., المطالبات for claims, التصريح المسبق for prior authorization, دورة الإيرادات for revenue cycle)
+- Created /src/lib/i18n/index.tsx — I18nProvider context with:
+  - Locale state persisted to localStorage (veebase-locale)
+  - setLocale callback that updates document.documentElement.dir and lang
+  - isRTL and dir computed values for RTL support
+  - useI18n() hook exposing { locale, setLocale, t, isRTL, dir }
+  - useEffect on mount to set initial direction
+- Updated /src/app/page.tsx — Wrapped app with I18nProvider, added dir={dir} to root div for RTL support
+- Updated /src/components/rcm/layout/header.tsx:
+  - Added Globe icon language toggle button between search and dark mode toggle
+  - Shows "عربي" when in English mode, "EN" when in Arabic mode
+  - Translated all view titles using t.nav and t.dashboard/claims/etc references
+  - Translated notification dropdown labels
+  - Translated Phase indicator badge
+- Updated /src/components/rcm/layout/sidebar-nav.tsx:
+  - Imported useI18n hook
+  - Replaced hardcoded nav labels with t.nav.xxx translations
+  - Added RTL border support (border-l in RTL, border-r in LTR)
+  - Translated Prohibited Actions Guard labels
+  - Translated footer text (Egypt, NHIA, FHIR)
+  - Used locale-aware date formatting for version footer
+  - Translated mobile nav labels
+- Updated /src/components/rcm/dashboard/dashboard-hero.tsx — Translated LIVE badge, Phase label, hero title, hero description, HFCX connected text, status pill labels
+- Updated /src/components/rcm/dashboard/kpi-cards.tsx — Translated all summary card titles/subtitles, KPI category section headers (Operational/Financial/Quality)
+- Updated /src/components/rcm/dashboard/agent-status-grid.tsx — Translated agent fleet status, linear workflow, cross-cutting labels, processed/active labels, status labels per locale
+- Updated /src/components/rcm/claims/claims-view.tsx — Translated search placeholder, status filter, table headers (Claim #, Patient, Payer, Status, Amount, Readiness, Risk, Service Date), claim detail labels (Billed, Paid, Patient Responsibility, Workflow Progress, Claim Readiness, Denial Risk, Prior Auth, HITL Gate, Processing Timeline, Appeal Strategies, Denied Claim, Appeal Deadline)
+- Updated /src/components/rcm/settings/settings-view.tsx — Translated all card titles, descriptions, phase mode labels, simulation speed, auto-refresh, HITL gate rules, notification preferences, payer configuration, data management, export/reset buttons, confirmation dialog
+- Updated /src/components/rcm/escalations/escalations-view.tsx — Translated Pending/Acknowledged/Resolved summary cards, Escalation Ladder title, all-resolved message, Acknowledge/Resolve buttons
+- Updated /src/components/rcm/audit/audit-view.tsx — Translated summary stats (Total Entries, Critical Events, HITL Decisions, Pending Reviews), export button, clear filters button, empty state
+- Updated /src/components/rcm/analytics/analytics-view.tsx — Translated On Target/Warning/Off Target, time period tabs (This Week/Month/Quarter), financial cards (Total Billed, Total Collected, Collection Rate, AR Days), all chart titles (Denial Rate Trend, Payer Mix, Revenue Trend, Claims Aging, Revenue by Payer, Denial by Reason, Daily Volume, Agent Activity, Agent Heatmap, Root Cause), heatmap legend (Good/Moderate/Concerning), table headers
+- Updated /src/components/rcm/agents/payer-rules-panel.tsx — Translated title, description, search placeholder, filter labels, all payers/rule types options, stale data warning, empty state
+- Ran bun run lint — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- Complete i18n system: I18nProvider context, useI18n hook, 250+ translated strings per language
+- Full Arabic translations with proper medical/financial Arabic terminology
+- RTL support: document.documentElement.dir set dynamically, sidebar border flips, text alignment adapts
+- Language toggle in header (Globe icon) — switches between EN and عربي
+- All 9 views have key strings translated: Dashboard, Agents, Claims, Escalations, Audit Trail, Payer Rules, Analytics, AI Chat, Settings
+- Locale persisted to localStorage for cross-session recall
+- Lint passes cleanly, dev server stable on port 3000
+
+---
+Task ID: 14+15
+Agent: Main Orchestrator
+Task: Build Hospital System Integration (PDF Ingestion) + Arabic Language Support
+
+Work Log:
+- Designed PDF Claim Ingestion Pipeline for non-standard hospital systems
+- Created virtual printer, watch folder, and API endpoint integration methods
+- Built VLM-powered PDF extraction using z-ai-web-dev-sdk with template fallback
+- Created 4 hospital templates (Auto-Detect, Cairo Medical Center, NHIA Standard, Alexandria General)
+- Built complete Ingestion Hub view with pipeline visualization, upload dropzone, processing queue, and extraction detail sheet
+- Created /api/ingest endpoint with VLM extraction and fallback
+- Built complete Arabic/English i18n system with custom React context
+- Created 409-line English and 409-line Arabic translation files with 250+ strings
+- Added RTL support with automatic direction switching
+- Added Globe icon language toggle in header
+- Applied i18n translations across 12 components (dashboard, claims, settings, analytics, etc.)
+- Integrated Ingestion Hub as 10th view in navigation, header, and page routing
+- Lint passes cleanly, dev server stable on port 3000
+
+Stage Summary:
+- Hospital System Integration: 3 methods (Virtual Printer, Watch Folder, API), VLM-powered extraction, 4 hospital templates, 5 sample PDFs
+- PDF Extraction Pipeline: Upload → Extract → Review → Submit with confidence scoring per field
+- Arabic Language: Full i18n with 250+ translated strings, RTL layout, language toggle
+- 10 views total: Dashboard, Agents, Claims, Ingestion Hub, Escalations, Audit Trail, Payer Rules, Analytics, AI Chat, Settings
+- Complete application with database, API, real-time simulation, and bilingual support

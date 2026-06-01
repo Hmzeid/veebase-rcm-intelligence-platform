@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRCMStore } from '@/lib/rcm-store';
 import type { ViewMode } from '@/lib/rcm-store';
+import { useI18n } from '@/lib/i18n';
 import {
   LayoutDashboard,
   Bot,
@@ -16,32 +18,40 @@ import {
   ShieldAlert,
   CheckCircle2,
   Settings,
+  Printer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
-const navItems: { id: ViewMode; label: string; icon: React.ElementType }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'agents', label: 'Agents', icon: Bot },
-  { id: 'claims', label: 'Claims Pipeline', icon: FileText },
-  { id: 'escalations', label: 'Escalations', icon: AlertOctagon },
-  { id: 'audit', label: 'Audit Trail', icon: ClipboardList },
-  { id: 'payer-rules', label: 'Payer Rules', icon: BookOpen },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { id: 'chat', label: 'AI Assistant', icon: MessageSquare },
-  { id: 'settings', label: 'Settings', icon: Settings },
+const navItems: { id: ViewMode; labelKey: string; icon: React.ElementType }[] = [
+  { id: 'dashboard', labelKey: 'dashboard', icon: LayoutDashboard },
+  { id: 'agents', labelKey: 'agents', icon: Bot },
+  { id: 'claims', labelKey: 'claims', icon: FileText },
+  { id: 'ingestion', labelKey: 'ingestion', icon: Printer },
+  { id: 'escalations', labelKey: 'escalations', icon: AlertOctagon },
+  { id: 'audit', labelKey: 'audit', icon: ClipboardList },
+  { id: 'payer-rules', labelKey: 'payerRules', icon: BookOpen },
+  { id: 'analytics', labelKey: 'analytics', icon: BarChart3 },
+  { id: 'chat', labelKey: 'chat', icon: MessageSquare },
+  { id: 'settings', labelKey: 'settings', icon: Settings },
 ];
 
 export function SidebarNav() {
   const { activeView, setActiveView, escalations, claims } = useRCMStore();
+  const { t, isRTL, locale } = useI18n();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const pendingEscalations = escalations.filter((e) => e.status === 'PENDING').length;
   const activeClaims = claims.filter(
     (c) => !['PAID', 'CLOSED', 'WRITTEN_OFF'].includes(c.status)
   ).length;
 
   return (
-    <aside className="hidden md:flex w-64 flex-col border-r bg-card h-screen sticky top-0">
+    <aside className={cn(
+      'hidden md:flex w-64 flex-col h-screen sticky top-0 bg-card',
+      isRTL ? 'border-l' : 'border-r'
+    )}>
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5">
         <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-600 text-white">
@@ -49,7 +59,7 @@ export function SidebarNav() {
         </div>
         <div>
           <h1 className="text-base font-bold tracking-tight">Veebase</h1>
-          <p className="text-[11px] text-muted-foreground -mt-0.5">RCM Intelligence</p>
+          <p className="text-[11px] text-muted-foreground -mt-0.5">{t.appSubtitle}</p>
         </div>
       </div>
 
@@ -59,11 +69,11 @@ export function SidebarNav() {
       <div className="px-6 py-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Activity className="w-3 h-3 text-emerald-500" />
-          <span>Phase 1 — Assistive Mode</span>
+          <span>{t.common.phase1Assistive}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>HFCX Connected</span>
+          <span>{t.common.hfcxConnected}</span>
         </div>
       </div>
 
@@ -81,6 +91,8 @@ export function SidebarNav() {
               ? activeClaims
               : 0;
 
+          const label = t.nav[item.labelKey as keyof typeof t.nav];
+
           return (
             <button
               key={item.id}
@@ -93,8 +105,8 @@ export function SidebarNav() {
               )}
             >
               <Icon className={cn('w-4 h-4', isActive && 'text-emerald-600 dark:text-emerald-400')} />
-              <span className="flex-1 text-left">{item.label}</span>
-              {badge > 0 && (
+              <span className={cn('flex-1', isRTL ? 'text-right' : 'text-left')}>{label}</span>
+              {mounted && badge > 0 && (
                 <Badge
                   variant={item.id === 'escalations' ? 'destructive' : 'secondary'}
                   className="h-5 min-w-[20px] text-[10px] px-1.5"
@@ -112,17 +124,17 @@ export function SidebarNav() {
         <div className="p-3 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/30">
           <div className="flex items-center gap-2 mb-2">
             <ShieldAlert className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">Prohibited Actions Guard</span>
+            <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">{t.common.prohibitedActionsGuard}</span>
             <Badge className="text-[8px] h-3.5 px-1 bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900 dark:text-emerald-300 dark:border-emerald-700">
-              ACTIVE
+              {t.common.active}
             </Badge>
           </div>
           <div className="space-y-1">
             {[
-              'No Auto-Accept Coding',
-              'No Auto-Write-Off',
-              'No Auto-Escalate to L5',
-              'No Suppress Fraud Flags',
+              t.common.noAutoAcceptCoding,
+              t.common.noAutoWriteOff,
+              t.common.noAutoEscalateL5,
+              t.common.noSuppressFraudFlags,
             ].map((rule) => (
               <div key={rule} className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
@@ -136,9 +148,9 @@ export function SidebarNav() {
       {/* Footer */}
       <div className="px-6 py-4 border-t">
         <div className="text-[10px] text-muted-foreground space-y-0.5">
-          <p>Egypt · NHIA / HFCX</p>
-          <p>FHIR R4 · JWE Protected</p>
-          <p>v1.0 · May 2026</p>
+          <p>{t.common.egypt} · {t.common.nhia}</p>
+          <p>{t.common.fhir}</p>
+          <p>v1.0 · {mounted ? new Date().toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', year: 'numeric' }) : ''}</p>
         </div>
       </div>
     </aside>
@@ -147,6 +159,9 @@ export function SidebarNav() {
 
 export function MobileNav() {
   const { activeView, setActiveView, escalations } = useRCMStore();
+  const { t } = useI18n();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const pendingEscalations = escalations.filter((e) => e.status === 'PENDING').length;
 
   return (
@@ -155,6 +170,7 @@ export function MobileNav() {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeView === item.id;
+          const label = t.nav[item.labelKey as keyof typeof t.nav];
           return (
             <button
               key={item.id}
@@ -168,13 +184,13 @@ export function MobileNav() {
             >
               <div className="relative">
                 <Icon className="w-5 h-5" />
-                {item.id === 'escalations' && pendingEscalations > 0 && (
+                {mounted && item.id === 'escalations' && pendingEscalations > 0 && (
                   <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
                     {pendingEscalations}
                   </span>
                 )}
               </div>
-              <span>{item.label.split(' ')[0]}</span>
+              <span>{label.split(' ')[0]}</span>
             </button>
           );
         })}

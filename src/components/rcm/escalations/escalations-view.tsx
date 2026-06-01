@@ -1,6 +1,7 @@
 'use client';
 
 import { useRCMStore } from '@/lib/rcm-store';
+import { useI18n } from '@/lib/i18n';
 import { EscalationRecord, ESCALATION_LEVEL_LABELS, ESCALATION_LEVEL_COLORS } from '@/lib/rcm-types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +36,8 @@ export function EscalationsView() {
     resolveEscalation,
   } = useRCMStore();
 
+  const { t } = useI18n();
+
   const filtered = escalations.filter(
     (e) => escalationLevelFilter === 'ALL' || e.level === escalationLevelFilter
   );
@@ -50,19 +53,19 @@ export function EscalationsView() {
         <Card className="border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20">
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">{pending.length}</p>
-            <p className="text-xs text-muted-foreground">Pending</p>
+            <p className="text-xs text-muted-foreground">{t.escalations.pending}</p>
           </CardContent>
         </Card>
         <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{acknowledged.length}</p>
-            <p className="text-xs text-muted-foreground">Acknowledged</p>
+            <p className="text-xs text-muted-foreground">{t.escalations.acknowledged}</p>
           </CardContent>
         </Card>
         <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20">
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{resolved.length}</p>
-            <p className="text-xs text-muted-foreground">Resolved</p>
+            <p className="text-xs text-muted-foreground">{t.escalations.resolved}</p>
           </CardContent>
         </Card>
       </div>
@@ -92,7 +95,7 @@ export function EscalationsView() {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <ArrowUpRight className="w-4 h-4" />
-            Escalation Ladder
+            {t.escalations.escalationLadder}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -131,8 +134,8 @@ export function EscalationsView() {
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-4">
             <CheckCircle2 className="w-12 h-12 text-emerald-400 mb-4" />
-            <p className="text-sm font-semibold text-muted-foreground">All escalations resolved!</p>
-            <p className="text-xs text-muted-foreground/70 mt-1">No pending or acknowledged escalations match your filters</p>
+            <p className="text-sm font-semibold text-muted-foreground">{t.escalations.allResolved}</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">{t.escalations.noMatch}</p>
           </div>
         ) : (
         filtered.map((escalation) => (
@@ -229,12 +232,12 @@ function EscalationCard({
           <div className="flex items-center gap-2 flex-shrink-0">
             {isPending && (
               <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onAcknowledge}>
-                Acknowledge
+                {t.escalations.acknowledge}
               </Button>
             )}
             {(isPending || isAcknowledged) && (
               <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={onResolve}>
-                Resolve
+                {t.escalations.resolve}
               </Button>
             )}
             {escalation.status === 'RESOLVED' && (

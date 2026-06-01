@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { KPIRecord } from '@/lib/rcm-types';
 import { useRCMStore } from '@/lib/rcm-store';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import {
   ArrowUpRight,
@@ -69,7 +70,7 @@ export function KPICard({ kpi, compact }: KPICardProps) {
             </p>
             {!compact && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                Target: {formatValue(kpi.target)}
+                {kpi.trend === 'IMPROVING' ? '↑' : kpi.trend === 'DEGRADING' ? '↓' : '→'} {formatValue(kpi.target)}
               </p>
             )}
           </div>
@@ -98,6 +99,7 @@ export function KPICard({ kpi, compact }: KPICardProps) {
 
 export function KPIGrid() {
   const { kpis } = useKPIData();
+  const { t } = useI18n();
   const operational = kpis.filter((k) => k.category === 'OPERATIONAL');
   const financial = kpis.filter((k) => k.category === 'FINANCIAL');
   const quality = kpis.filter((k) => k.category === 'QUALITY');
@@ -107,30 +109,30 @@ export function KPIGrid() {
       {/* Summary Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <SummaryCard
-          title="Active Claims"
+          title={t.dashboard.activeClaims}
           value="107"
-          subtitle="12 at risk"
+          subtitle={`12 ${t.dashboard.atRisk}`}
           trend="IMPROVING"
           color="emerald"
         />
         <SummaryCard
-          title="Monthly Revenue"
+          title={t.dashboard.monthlyRevenue}
           value="EGP 4.9M"
-          subtitle="88.8% collected"
+          subtitle={`88.8% ${t.dashboard.collected}`}
           trend="STABLE"
           color="emerald"
         />
         <SummaryCard
-          title="Pending Escalations"
+          title={t.dashboard.pendingEscalations}
           value="7"
-          subtitle="2 high priority"
+          subtitle={`2 ${t.dashboard.highPriority}`}
           trend="DEGRADING"
           color="amber"
         />
         <SummaryCard
-          title="Avg Readiness"
+          title={t.dashboard.avgReadiness}
           value="84%"
-          subtitle="Target: 90%+"
+          subtitle={`${t.dashboard.target}: 90%+`}
           trend="IMPROVING"
           color="emerald"
         />
@@ -140,7 +142,7 @@ export function KPIGrid() {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-          Operational KPIs
+          {t.dashboard.kpiCategories.operational}
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {operational.map((kpi) => (
@@ -153,7 +155,7 @@ export function KPIGrid() {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-          Financial KPIs
+          {t.dashboard.kpiCategories.financial}
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {financial.map((kpi) => (
@@ -166,7 +168,7 @@ export function KPIGrid() {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-          Quality KPIs
+          {t.dashboard.kpiCategories.quality}
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {quality.map((kpi) => (

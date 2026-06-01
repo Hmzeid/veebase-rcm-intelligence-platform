@@ -1,6 +1,7 @@
 'use client';
 
 import { useRCMStore } from '@/lib/rcm-store';
+import { useI18n } from '@/lib/i18n';
 import { KPIRecord } from '@/lib/rcm-types';
 import {
   DENIAL_TREND_DATA,
@@ -64,6 +65,7 @@ type TimePeriod = 'week' | 'month' | 'quarter';
 
 export function AnalyticsView() {
   const { kpis, claims, agents } = useRCMStore();
+  const { t } = useI18n();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('month');
 
   const onTarget = kpis.filter((k) => k.status === 'ON_TARGET').length;
@@ -144,15 +146,15 @@ export function AnalyticsView() {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            <span className="text-sm font-medium">{onTarget} On Target</span>
+            <span className="text-sm font-medium">{onTarget} {t.analytics.onTarget}</span>
           </div>
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-500" />
-            <span className="text-sm font-medium">{warning} Warning</span>
+            <span className="text-sm font-medium">{warning} {t.analytics.warning}</span>
           </div>
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-500" />
-            <span className="text-sm font-medium">{offTarget} Off Target</span>
+            <span className="text-sm font-medium">{offTarget} {t.analytics.offTarget}</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -163,15 +165,15 @@ export function AnalyticsView() {
             <TabsList className="h-8">
               <TabsTrigger value="week" className="text-xs px-3 h-7">
                 <Calendar className="w-3 h-3 mr-1" />
-                This Week
+                {t.analytics.thisWeek}
               </TabsTrigger>
               <TabsTrigger value="month" className="text-xs px-3 h-7">
                 <Calendar className="w-3 h-3 mr-1" />
-                This Month
+                {t.analytics.thisMonth}
               </TabsTrigger>
               <TabsTrigger value="quarter" className="text-xs px-3 h-7">
                 <Calendar className="w-3 h-3 mr-1" />
-                This Quarter
+                {t.analytics.thisQuarter}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -181,7 +183,7 @@ export function AnalyticsView() {
       {/* Financial Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <FinancialCard
-          title="Total Billed"
+          title={t.analytics.totalBilled}
           value={`EGP ${(financialSummary.totalBilled / 1000000).toFixed(2)}M`}
           subtitle={`${filteredClaimsByPeriod.length} claims`}
           icon={DollarSign}
@@ -190,7 +192,7 @@ export function AnalyticsView() {
           color="emerald"
         />
         <FinancialCard
-          title="Total Collected"
+          title={t.analytics.totalCollected}
           value={`EGP ${(financialSummary.totalCollected / 1000000).toFixed(2)}M`}
           subtitle={financialSummary.totalBilled > 0 ? `${Math.round((financialSummary.totalCollected / financialSummary.totalBilled) * 100)}% of billed` : '0% of billed'}
           icon={Wallet}
@@ -199,7 +201,7 @@ export function AnalyticsView() {
           color="sky"
         />
         <FinancialCard
-          title="Collection Rate"
+          title={t.analytics.collectionRate}
           value={`${financialSummary.collectionRate.toFixed(1)}%`}
           subtitle="Target: 96.0%"
           icon={BarChart3}
@@ -208,7 +210,7 @@ export function AnalyticsView() {
           color={financialSummary.collectionRate >= 96 ? 'emerald' : 'amber'}
         />
         <FinancialCard
-          title="AR Days"
+          title={t.analytics.arDays}
           value={`${financialSummary.arDays.toFixed(1)}`}
           subtitle="Target: ≤40 days"
           icon={Clock}
@@ -230,7 +232,7 @@ export function AnalyticsView() {
         {/* Denial Trend */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Denial Rate Trend</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t.analytics.denialRateTrend}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
@@ -253,7 +255,7 @@ export function AnalyticsView() {
         {/* Payer Mix Donut Chart */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Payer Mix Distribution</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t.analytics.payerMix}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64 flex items-center justify-center">
@@ -297,7 +299,7 @@ export function AnalyticsView() {
         {/* Revenue Trend (Stacked Area Chart) */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Revenue Trend (6 Months)</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t.analytics.revenueTrend}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
@@ -337,7 +339,7 @@ export function AnalyticsView() {
         {/* Claims Aging Analysis */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Claims Aging Analysis</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t.analytics.claimsAging}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
@@ -373,7 +375,7 @@ export function AnalyticsView() {
         {/* Revenue by Payer */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Revenue by Payer</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t.analytics.revenueByPayer}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
@@ -395,7 +397,7 @@ export function AnalyticsView() {
         {/* Denial by Reason */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Denial by Reason Code</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t.analytics.denialByReason}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -429,7 +431,7 @@ export function AnalyticsView() {
         {/* Daily Claims Volume */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Daily Claims Volume</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t.analytics.dailyVolume}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
@@ -452,7 +454,7 @@ export function AnalyticsView() {
         {/* Agent Activity */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Agent Activity (Today)</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t.analytics.agentActivity}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
@@ -480,11 +482,11 @@ export function AnalyticsView() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold">Agent Performance Heatmap</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t.analytics.agentHeatmap}</CardTitle>
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" /> Good</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-amber-500 inline-block" /> Moderate</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-500 inline-block" /> Concerning</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" /> {t.analytics.good}</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-amber-500 inline-block" /> {t.analytics.moderate}</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-500 inline-block" /> {t.analytics.concerning}</span>
             </div>
           </div>
         </CardHeader>
@@ -494,10 +496,10 @@ export function AnalyticsView() {
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Agent</th>
-                  <th className="text-right py-2 px-3 font-semibold text-muted-foreground">Claims Processed</th>
-                  <th className="text-right py-2 px-3 font-semibold text-muted-foreground">Active Claims</th>
-                  <th className="text-right py-2 px-3 font-semibold text-muted-foreground">Avg Time (s)</th>
-                  <th className="text-right py-2 px-3 font-semibold text-muted-foreground">Error Rate</th>
+                  <th className="text-right py-2 px-3 font-semibold text-muted-foreground">{t.analytics.claimsProcessed}</th>
+                  <th className="text-right py-2 px-3 font-semibold text-muted-foreground">{t.analytics.activeClaims}</th>
+                  <th className="text-right py-2 px-3 font-semibold text-muted-foreground">{t.analytics.avgTime}</th>
+                  <th className="text-right py-2 px-3 font-semibold text-muted-foreground">{t.analytics.errorRate}</th>
                 </tr>
               </thead>
               <tbody>
@@ -547,7 +549,7 @@ export function AnalyticsView() {
       {/* Root Cause Narratives */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold">Root-Cause Narratives</CardTitle>
+          <CardTitle className="text-sm font-semibold">{t.analytics.rootCause}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <RootCauseNarrative

@@ -163,6 +163,60 @@ export interface AuditEntry {
   tags: string[];
 }
 
+// ========== Ingestion Types ==========
+
+export type IngestionStatus = 'UPLOADING' | 'PENDING' | 'EXTRACTING' | 'EXTRACTED' | 'REVIEWING' | 'SUBMITTED' | 'FAILED';
+
+export interface IngestedPDF {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  uploadedAt: string;
+  status: IngestionStatus;
+  hospitalTemplate: string;
+  extractedData?: ExtractedClaimData;
+  extractionConfidence: number; // 0-100
+  extractionError?: string;
+  claimId?: string; // linked claim after submission
+  pageCount: number;
+  source: 'upload' | 'virtual_printer' | 'watch_folder' | 'api';
+}
+
+export interface ExtractedClaimData {
+  patientName?: string;
+  nationalId?: string;
+  payerName?: string;
+  payerType?: PayerType;
+  payerId?: string;
+  serviceDate?: string;
+  totalAmount?: number;
+  department?: string;
+  procedureCodes?: string[];
+  diagnosisCodes?: string[];
+  priorAuthRequired?: boolean;
+  priorAuthNumber?: string;
+  attendingPhysician?: string;
+  facilityName?: string;
+  claimNumber?: string;
+  encounterType?: string;
+  admissionDate?: string;
+  dischargeDate?: string;
+  notes?: string;
+  // Confidence per field
+  fieldConfidence?: Record<string, number>;
+}
+
+export interface HospitalTemplate {
+  id: string;
+  name: string;
+  nameAr: string;
+  description: string;
+  hospitalSystem: string;
+  fieldMappings: Record<string, string>; // template field → our field
+  sampleFormat: string;
+  extractionHints: string[];
+}
+
 // Pipeline stages in order
 export const PIPELINE_STAGES: ClaimStatus[] = [
   'ELIGIBILITY',
