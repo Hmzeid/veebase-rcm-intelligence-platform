@@ -89,7 +89,7 @@ const HITL_ROWS: HitlRow[] = [
   },
 ];
 
-const CURRENT_PHASE = 1;
+const CURRENT_PHASE: number = 1;
 
 // ── Cell style mapping ─────────────────────────────────────────────
 

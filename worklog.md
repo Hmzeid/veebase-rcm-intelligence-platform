@@ -433,3 +433,207 @@ Stage Summary:
 - 20 detailed agent output entries across 7 claims covering full RCM pipeline
 - 5 appeal strategies from specification with Egypt/NHIA context
 - Lint passes cleanly, dev server stable on port 3000
+
+---
+Task ID: 1
+Agent: Bug Fix Agent
+Task: Fix 5 critical bugs in Veebase RCM Intelligence Platform
+
+Work Log:
+- Read worklog.md and all 5 affected files before making changes
+- Bug 1: Fixed agent.name → agent.agentName in /src/components/rcm/dashboard/use-agent-simulation.ts
+  - Line 210: Changed `agent: agent.name` to `agent: agent.agentName` in ERROR activity generation
+  - Line 225: Changed `agent: agent.name` to `agent: agent.agentName` in COMPLETION activity generation
+  - The AgentRecord type uses `agentName` not `name`, so these were referencing an undefined property
+- Bug 2: Added missing EscalationRecord import in /src/app/api/escalations/route.ts
+  - Changed `import type { EscalationStatus } from '@/lib/rcm-types'` to `import type { EscalationStatus, EscalationRecord } from '@/lib/rcm-types'`
+  - EscalationRecord was used in the Map type annotation on line 7 but was not imported
+- Bug 3: Fixed LLM SDK constructor issue in /src/app/api/chat/route.ts
+  - Changed from `const { LLM } = await import('z-ai-web-dev-sdk'); const llm = new LLM();`
+  - To: `const sdk = await import('z-ai-web-dev-sdk'); const LLMClass = sdk.LLM || sdk.default?.LLM; if (!LLMClass) throw new Error('LLM not available in SDK'); const llm = new LLMClass();`
+  - z-ai-web-dev-sdk v0.0.18 doesn't export LLM as a named constructor; fallback still works if LLMClass is null
+- Bug 4: Fixed CURRENT_PHASE TypeScript literal type in /src/components/rcm/dashboard/hitl-gate-matrix.tsx
+  - Changed `const CURRENT_PHASE = 1;` to `const CURRENT_PHASE: number = 1;`
+  - TypeScript inferred literal type `1`, making `CURRENT_PHASE === 2` and `CURRENT_PHASE === 3` always-false warnings
+  - Explicit `number` type allows valid comparisons without warnings
+- Bug 5: Fixed Analytics Tooltip formatter type in /src/components/rcm/analytics/analytics-view.tsx
+  - Changed `props: { payload: { count: number } }` to `props: { payload?: { count: number } }`
+  - Changed `props.payload.count` to `props?.payload?.count ?? 0`
+  - Recharts Tooltip props.payload may be undefined, causing potential runtime errors
+- Ran bun run lint — passed with zero errors
+- Checked dev.log — server compiling successfully, no errors
+
+Stage Summary:
+- 5 critical bugs fixed across 5 files
+- Agent simulation now correctly uses agent.agentName property
+- Escalations API no longer has missing type import
+- Chat API LLM SDK import is resilient to different export patterns
+- HITL Gate Matrix no longer produces TypeScript "always false" comparison warnings
+- Analytics Tooltip formatter handles undefined payload safely
+- Lint passes cleanly, dev server stable on port 3000
+
+---
+Task ID: 2-b
+Agent: Feature Enhancement Builder
+Task: Add Claim Status Progression to Agent Simulation and Make Draft Appeal Buttons Functional
+
+Work Log:
+- Read worklog.md and all relevant files (use-agent-simulation.ts, claims-view.tsx, rcm-types.ts, rcm-store.ts, rcm-data.ts)
+- Enhanced /src/components/rcm/dashboard/use-agent-simulation.ts with claim status progression:
+  - Imported ClaimStatus and PIPELINE_STAGES from rcm-types
+  - Added 30% chance per tick to progress a random claim through the pipeline
+  - Claims in pipeline stages (ELIGIBILITY → REMITTANCE) advance to the next stage
+  - REMITTANCE claims: 60% chance → PAID, 40% chance → DENIED
+  - When PAID: paidAmount set to random 80-100% of totalAmount, patientResponsibility set to remainder
+  - updatedAt timestamp updated on every claim progression
+  - Activity item generated for each claim advancement (info for pipeline, success for PAID, error for DENIED)
+  - Added claims to batch setState alongside agents and activities
+- Made Draft Appeal buttons functional in /src/components/rcm/claims/claims-view.tsx:
+  - Added handleDraftAppeal function that generates a markdown-formatted appeal document
+  - Document includes: claim number, patient name, payer name, denial background, strategy details, estimated recovery, required documents checklist, professional appeal letter template with blanks
+  - Downloads the appeal as a .md file via Blob + createObjectURL + programmatic anchor click
+  - File named: appeal-{claimNumber}-strategy-{strategyKey}.md
+  - Success toast shows strategy name and estimated recovery amount
+  - Passed full claim object from AppealStrategyPanel → AppealStrategyCard (previously only claimAmount)
+  - Updated AppealStrategyCard props: claimAmount → claim (ClaimRecord), computes claimAmount locally
+- Ran bun run lint — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- Agent simulation now progresses claims through the pipeline every 3-5s (30% chance per tick)
+- Claims advance through ELIGIBILITY → PRIOR_AUTH → ... → REMITTANCE → PAID/DENIED
+- PAID claims get financial updates (paidAmount 80-100% of total, patientResponsibility = remainder)
+- Draft Appeal buttons generate and download real markdown appeal documents
+- Appeal documents include professional letter template with claim details and strategy info
+- Lint passes cleanly, dev server stable on port 3000
+
+---
+Task ID: 2-a
+Agent: Settings & CSV Export Builder
+Task: Build Settings/Configuration View and implement CSV Export for Audit Trail
+
+Work Log:
+- Read worklog.md and all existing project files (rcm-store, rcm-data, rcm-types, sidebar-nav, header, page, audit-view)
+- Updated /src/lib/rcm-store.ts — Extended store with settings capabilities:
+  - Added 'settings' to ViewMode type union
+  - Added NotificationPreferences interface (6 boolean fields: claimsSubmitted, claimsPaid, claimsDenied, escalationsRaised, agentErrors, agentCompletions)
+  - Added simulationSpeed (number, default 3) and setSimulationSpeed setter
+  - Added autoRefresh (boolean, default true) and setAutoRefresh setter
+  - Added notifications (NotificationPreferences, all true by default) and setNotifications setter
+  - Added resetDemoData action that resets all store state to initial values (AGENTS, CLAIMS, ESCALATIONS, KPIS, INITIAL_ACTIVITIES, AUDIT_ENTRIES, default filters, default settings)
+- Created /src/components/rcm/settings/settings-view.tsx — Full settings view with 5 cards:
+  1. System Configuration Card: Phase mode toggle (Phase 1/2/3 buttons with visual selection), Simulation Speed slider (1s-10s with value display), Auto-refresh dashboard toggle switch
+  2. HITL Gate Rules Card: Displays 4 PROHIBITED_ACTIONS from rcm-data with disabled toggle switches (always enforced), "ALWAYS" badge, and descriptions; footer note explaining rules cannot be disabled
+  3. Notification Preferences Card: 6 toggle switches for notification types (Claims Submitted, Claims Paid, Claims Denied, Escalations Raised, Agent Errors, Agent Completions), all ON by default, each with icon
+  4. Payer Configuration Card: Read-only display of NHIA (45%, 30 days), Private TPAs (40%, 60 days), Self-Pay (15%, 90 days) with color-coded badges, disabled edit icon buttons, amber notice about read-only state
+  5. Data Management Card (full-width): Export All Data as CSV (generates claims CSV with 15 columns), Export Audit Trail (generates audit CSV with 11 columns), Reset Demo Data (with AlertDialog confirmation, destructive styling)
+- Updated /src/components/rcm/layout/sidebar-nav.tsx — Added Settings nav item with Settings icon from lucide-react, positioned after AI Assistant
+- Updated /src/components/rcm/layout/header.tsx — Added 'settings': 'Settings' to viewTitles
+- Updated /src/app/page.tsx — Imported SettingsView, added conditional rendering for activeView === 'settings'
+- Updated /src/components/rcm/audit/audit-view.tsx — Replaced toast-only Export stub with real CSV export:
+  - Generates CSV with headers: Timestamp, Action, Actor, Role, Claim #, Agent, Details, Previous, New, Risk Level, Tags
+  - Uses filteredEntries (respects current filters)
+  - Escapes double quotes in details field
+  - Creates Blob, generates object URL, triggers download via programmatic anchor click
+  - Revokes URL after download
+  - Shows success toast
+- Ran bun run lint — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- Settings view with 5 configuration cards: System Configuration, HITL Gate Rules, Notification Preferences, Payer Configuration, Data Management
+- Store extended with simulationSpeed, autoRefresh, notifications, and resetDemoData
+- CSV Export for both claims data and audit trail fully functional (real file downloads)
+- Audit trail export button now generates actual CSV instead of toast-only stub
+- 9 views total: Dashboard, Agents, Claims, Escalations, Audit Trail, Payer Rules, Analytics, AI Chat, Settings
+- Lint passes cleanly, dev server stable on port 3000
+
+---
+Task ID: 4+8
+Agent: UI Polish & Analytics Enhancement Builder
+Task: Make Analytics Time Period Selector Functional + UI Polish (Loading States, Animations, Empty States)
+
+Work Log:
+- Read worklog.md and all relevant files (analytics-view.tsx, page.tsx, dashboard-view.tsx, claims-view.tsx, escalations-view.tsx, audit-view.tsx, agents-view.tsx)
+- Feature 1: Made Analytics Time Period Selector functional in /src/components/rcm/analytics/analytics-view.tsx
+  - Added `filteredClaimsByPeriod` useMemo that filters claims by `createdAt` based on selected time period (7/30/90 days)
+  - Replaced `claims` with `filteredClaimsByPeriod` in `financialSummary` computation (totalBilled, totalCollected, collectionRate, arDays)
+  - Replaced `claims` with `filteredClaimsByPeriod` in `claimsAging` computation (aging bucket counts and amounts)
+  - Updated FinancialCard subtitle to use `filteredClaimsByPeriod.length` instead of `claims.length`
+  - Added safe division check for "Total Collected" subtitle when totalBilled is 0
+  - Updated Payer Mix donut chart center label to show `filteredClaimsByPeriod.length`
+  - Added claims count badge next to time period selector showing "X claims in period"
+  - Static chart data (DENIAL_TREND_DATA, REVENUE_BY_PAYER, etc.) remain unchanged as historical data
+- Feature 2a: Added Framer Motion page transitions to /src/app/page.tsx
+  - Imported `motion` and `AnimatePresence` from framer-motion
+  - Created `viewMap` record mapping view names to components
+  - Wrapped view rendering in `AnimatePresence mode="wait"` with `motion.div`
+  - Transition: fade + y-offset (opacity 0→1, y 8→0 on enter; opacity 0, y -8 on exit)
+  - Duration: 0.15s for snappy feel
+  - Uses `activeView` as `key` so AnimatePresence detects view changes
+- Feature 2b: Added loading skeleton for Dashboard view in /src/components/rcm/dashboard/dashboard-view.tsx
+  - Added `useState(true)` + `useEffect` with 500ms timeout for initial loading state
+  - Created `DashboardSkeleton` component with Skeleton from shadcn/ui
+  - Skeleton layout: hero banner, 4 KPI cards, 2 chart cards
+  - Shows skeleton on first mount, then transitions to real content
+- Feature 2c: Added empty states for views that might have no data
+  - claims-view.tsx: When `filteredClaims.length === 0`, shows centered FileText icon with "No claims found matching your filters" and subtitle
+  - escalations-view.tsx: When `filtered.length === 0`, shows centered CheckCircle2 icon (emerald) with "All escalations resolved!" and subtitle
+  - audit-view.tsx: Replaced Card-wrapped empty state with centered ClipboardList icon and "No audit entries match your criteria" message
+- Feature 2d: Added hover effects to agent cards in /src/components/rcm/agents/agents-view.tsx
+  - Changed `AgentDetailCard` hover classes from `hover:shadow-md transition-shadow` to `hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer`
+  - Subtle lift effect (-0.5px) on hover with smooth transition
+- Ran `bun run lint` — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- Analytics Time Period Selector now functional: filters claims by createdAt (7/30/90 days), updates financial summary, claims aging, and claim counts
+- Claims count badge next to period selector shows "X claims in period"
+- Framer Motion page transitions: smooth fade + slide when switching between views (0.15s duration)
+- Dashboard loading skeleton: 500ms skeleton on first mount with KPI cards and chart placeholders
+- Empty states: Claims view (FileText), Escalations view (CheckCircle2), Audit view (ClipboardList) — all centered with icon + bold message + subtle subtitle
+- Agent card hover: subtle lift effect (-translate-y-0.5) with shadow and smooth transition
+- Lint passes cleanly, dev server stable on port 3000
+
+---
+Task ID: 3
+Agent: Prisma Integration Builder
+Task: Integrate Prisma database into Veebase RCM Intelligence Platform
+
+Work Log:
+- Read worklog.md and all existing project files (prisma/schema.prisma, db.ts, rcm-data.ts, rcm-types.ts, API routes, package.json)
+- Created /prisma/seed.ts — database seed script
+  - Imports mock data from @/lib/rcm-data (AGENTS, CLAIMS, ESCALATIONS, KPIS)
+  - Uses PrismaClient to seed all 4 tables
+  - Handles tags field: JSON.stringify() for storage (tags are string[] in TypeScript, String in DB)
+  - Handles date fields: converts ISO strings to Date objects for all DateTime fields
+  - Uses deleteMany({}) first to clear each table before seeding (reverse dependency order)
+  - Logs progress with emoji indicators and summary counts
+- Added "db:seed" script to package.json: "bun run prisma/seed.ts"
+- Updated /src/app/api/claims/route.ts:
+  - Added POST endpoint that creates a new claim in the database
+  - Handles tags (JSON.stringify), date conversions
+  - GET endpoint now tries reading from database first, falls back to mock data
+  - DB records transformed to match ClaimRecord type
+  - All existing filter/pagination/summary logic preserved
+- Updated /src/app/api/escalations/route.ts:
+  - PATCH endpoint now also writes to the database after updating in-memory override
+  - Database update wrapped in try/catch so it works even if record doesn't exist in DB
+  - In-memory override still works as before; DB update is best-effort
+- Updated /src/app/api/agents/route.ts:
+  - GET endpoint now tries reading from database first (ordered by sequence asc)
+  - DB records transformed to match AgentRecord type
+  - Falls back to mock data if DB read fails or returns empty
+  - Extracted computeSummary() function shared by both DB and mock data paths
+- Ran bun run db:push — schema in sync, Prisma Client regenerated
+- Ran bun run db:seed — successfully seeded: 12 agents, 25 claims, 10 escalations, 12 KPIs
+- Ran bun run lint — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- Database seed script created at prisma/seed.ts with full mock data population
+- Claims API now has POST endpoint for creating claims in DB + GET reads from DB first
+- Escalations API PATCH now persists changes to DB alongside in-memory overrides
+- Agents API GET now reads from DB first with mock data fallback
+- Database successfully seeded with all mock data (12 agents, 25 claims, 10 escalations, 12 KPIs)
+- Lint passes cleanly, dev server stable on port 3000

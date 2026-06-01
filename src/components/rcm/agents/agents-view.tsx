@@ -175,7 +175,7 @@ function AgentDetailCard({ agent }: { agent: AgentRecord }) {
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-shadow"
+      className="cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all"
       onClick={() => setSelectedAgent(agent)}
     >
       <CardContent className="p-4">

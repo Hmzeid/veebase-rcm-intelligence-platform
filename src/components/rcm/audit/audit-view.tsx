@@ -111,9 +111,29 @@ export function AuditView() {
   }, [auditEntries]);
 
   const handleExport = () => {
-    toast.success('Audit trail exported', {
-      description: `${filteredEntries.length} entries exported to CSV`,
-    });
+    const headers = ['Timestamp', 'Action', 'Actor', 'Role', 'Claim #', 'Agent', 'Details', 'Previous', 'New', 'Risk Level', 'Tags'];
+    const rows = filteredEntries.map((e) => [
+      e.timestamp,
+      e.action,
+      e.actor,
+      e.actorRole,
+      e.claimNumber || '',
+      e.agentName || '',
+      `"${e.details.replace(/"/g, '""')}"`,
+      e.previousValue || '',
+      e.newValue || '',
+      e.riskLevel,
+      e.tags.join('; '),
+    ]);
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-trail-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Audit trail exported successfully');
   };
 
   const handleClearFilters = () => {
@@ -300,13 +320,11 @@ export function AuditView() {
       <ScrollArea className="max-h-[calc(100vh-380px)]">
         <div className="relative space-y-0">
           {filteredEntries.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <ClipboardList className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm font-medium text-muted-foreground">No audit entries found</p>
-                <p className="text-xs text-muted-foreground mt-1">Try adjusting your filters or search query</p>
-              </CardContent>
-            </Card>
+            <div className="flex flex-col items-center justify-center py-16 px-4">
+              <ClipboardList className="w-12 h-12 text-muted-foreground/40 mb-4" />
+              <p className="text-sm font-semibold text-muted-foreground">No audit entries match your criteria</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">Try adjusting your filters or search query</p>
+            </div>
           ) : (
             <div className="relative">
               {/* Timeline line */}

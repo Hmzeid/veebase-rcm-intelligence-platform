@@ -15,6 +15,7 @@ import {
   ClipboardList,
   ShieldAlert,
   CheckCircle2,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +30,7 @@ const navItems: { id: ViewMode; label: string; icon: React.ElementType }[] = [
   { id: 'payer-rules', label: 'Payer Rules', icon: BookOpen },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'chat', label: 'AI Assistant', icon: MessageSquare },
+  { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
 export function SidebarNav() {

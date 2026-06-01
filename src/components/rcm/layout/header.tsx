@@ -23,6 +23,7 @@ const viewTitles: Record<string, string> = {
   'payer-rules': 'Payer Contract & Rules',
   analytics: 'Analytics & Reporting',
   chat: 'AI Assistant',
+  settings: 'Settings',
 };
 
 export function Header() {

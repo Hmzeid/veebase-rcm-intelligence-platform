@@ -2,7 +2,16 @@ import { create } from 'zustand';
 import { ClaimRecord, ClaimStatus, AgentRecord, EscalationRecord, KPIRecord, AuditEntry } from './rcm-types';
 import { AGENTS, CLAIMS, ESCALATIONS, KPIS, INITIAL_ACTIVITIES, AUDIT_ENTRIES } from './rcm-data';
 
-export type ViewMode = 'dashboard' | 'agents' | 'claims' | 'escalations' | 'analytics' | 'chat' | 'payer-rules' | 'audit';
+export type ViewMode = 'dashboard' | 'agents' | 'claims' | 'escalations' | 'analytics' | 'chat' | 'payer-rules' | 'audit' | 'settings';
+
+export interface NotificationPreferences {
+  claimsSubmitted: boolean;
+  claimsPaid: boolean;
+  claimsDenied: boolean;
+  escalationsRaised: boolean;
+  agentErrors: boolean;
+  agentCompletions: boolean;
+}
 
 export interface ActivityItem {
   id: string;
@@ -43,11 +52,20 @@ interface RCMStore {
   selectedEscalation: EscalationRecord | null;
   setSelectedEscalation: (esc: EscalationRecord | null) => void;
 
+  // Settings
+  simulationSpeed: number;
+  setSimulationSpeed: (speed: number) => void;
+  autoRefresh: boolean;
+  setAutoRefresh: (autoRefresh: boolean) => void;
+  notifications: NotificationPreferences;
+  setNotifications: (prefs: NotificationPreferences) => void;
+
   // Actions
   addClaim: (claim: ClaimRecord) => void;
   acknowledgeEscalation: (id: string) => void;
   resolveEscalation: (id: string) => void;
   addAuditEntry: (entry: AuditEntry) => void;
+  resetDemoData: () => void;
 }
 
 export const useRCMStore = create<RCMStore>((set) => ({
@@ -78,6 +96,21 @@ export const useRCMStore = create<RCMStore>((set) => ({
   setSelectedClaim: (claim) => set({ selectedClaim: claim }),
   selectedEscalation: null,
   setSelectedEscalation: (esc) => set({ selectedEscalation: esc }),
+
+  // Settings
+  simulationSpeed: 3,
+  setSimulationSpeed: (speed) => set({ simulationSpeed: speed }),
+  autoRefresh: true,
+  setAutoRefresh: (autoRefresh) => set({ autoRefresh }),
+  notifications: {
+    claimsSubmitted: true,
+    claimsPaid: true,
+    claimsDenied: true,
+    escalationsRaised: true,
+    agentErrors: true,
+    agentCompletions: true,
+  },
+  setNotifications: (prefs) => set({ notifications: prefs }),
 
   // Actions
   addClaim: (claim) =>
@@ -139,4 +172,30 @@ export const useRCMStore = create<RCMStore>((set) => ({
     set((state) => ({
       auditEntries: [entry, ...state.auditEntries],
     })),
+
+  resetDemoData: () =>
+    set({
+      agents: AGENTS,
+      claims: CLAIMS,
+      escalations: ESCALATIONS,
+      kpis: KPIS,
+      recentActivities: INITIAL_ACTIVITIES,
+      auditEntries: AUDIT_ENTRIES,
+      claimStatusFilter: 'ALL',
+      claimSearchQuery: '',
+      escalationLevelFilter: 'ALL',
+      selectedAgent: null,
+      selectedClaim: null,
+      selectedEscalation: null,
+      simulationSpeed: 3,
+      autoRefresh: true,
+      notifications: {
+        claimsSubmitted: true,
+        claimsPaid: true,
+        claimsDenied: true,
+        escalationsRaised: true,
+        agentErrors: true,
+        agentCompletions: true,
+      },
+    }),
 }));

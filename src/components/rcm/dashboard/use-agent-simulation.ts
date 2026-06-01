@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useRCMStore } from '@/lib/rcm-store';
-import { AgentStatusType } from '@/lib/rcm-types';
+import { AgentStatusType, ClaimStatus, PIPELINE_STAGES } from '@/lib/rcm-types';
 
 // ── Simulation Config ───────────────────────────────────────────────
 
@@ -153,10 +153,12 @@ export function useAgentSimulation(enabled = true) {
 
     const state = store.getState();
     const agents = state.agents;
+    const claims = state.claims;
 
     // Pick 1–2 random agents to update
     const updateCount = Math.random() < 0.4 ? 2 : 1;
     const updatedAgents = [...agents];
+    const updatedClaims = [...claims];
 
     const pendingNewActivities: Array<{
       id: string;
@@ -207,7 +209,7 @@ export function useAgentSimulation(enabled = true) {
           claimNumber: `CLM-2026-${String(randomBetween(1, 25)).padStart(4, '0')}`,
           message: randomPick(ERROR_ACTIVITY_TEMPLATES),
           timestamp: new Date().toISOString(),
-          agent: agent.name,
+          agent: agent.agentName,
           severity: 'error',
         });
       }
@@ -222,8 +224,86 @@ export function useAgentSimulation(enabled = true) {
           claimNumber: `CLM-2026-${String(randomBetween(1, 25)).padStart(4, '0')}`,
           message: completionMessage,
           timestamp: new Date().toISOString(),
-          agent: agent.name,
+          agent: agent.agentName,
           severity: 'success',
+        });
+      }
+    }
+
+    // ── Claim Status Progression (30% chance per tick) ──────────────
+    if (Math.random() < 0.3) {
+      // Find claims that are in a pipeline stage (ELIGIBILITY → REMITTANCE)
+      const pipelineClaims = updatedClaims.filter((c) =>
+        PIPELINE_STAGES.includes(c.status as ClaimStatus) && c.status !== 'PAID'
+      );
+
+      if (pipelineClaims.length > 0) {
+        const claim = randomPick(pipelineClaims);
+        const claimIdx = updatedClaims.findIndex((c) => c.id === claim.id);
+        const stageIdx = PIPELINE_STAGES.indexOf(claim.status as ClaimStatus);
+
+        let newStatus: ClaimStatus;
+        let activitySeverity: 'info' | 'success' | 'warning' | 'error' = 'info';
+        let activityType: 'claim_submitted' | 'claim_paid' | 'claim_denied' | 'escalation' | 'auth_approved' | 'payment_posted' = 'claim_submitted';
+        let activityMessage = '';
+
+        if (claim.status === 'REMITTANCE') {
+          // REMITTANCE → 60% PAID, 40% DENIED
+          if (Math.random() < 0.6) {
+            newStatus = 'PAID';
+            activitySeverity = 'success';
+            activityType = 'claim_paid';
+
+            // Financial updates: paidAmount = 80-100% of totalAmount
+            const paidPct = randomBetween(80, 100) / 100;
+            const paidAmount = Math.round(claim.totalAmount * paidPct * 100) / 100;
+            const patientResponsibility = Math.round((claim.totalAmount - paidAmount) * 100) / 100;
+
+            updatedClaims[claimIdx] = {
+              ...updatedClaims[claimIdx],
+              status: newStatus,
+              updatedAt: new Date().toISOString(),
+              paidAmount,
+              patientResponsibility,
+            };
+
+            activityMessage = `Claim ${claim.claimNumber} paid — EGP ${paidAmount.toLocaleString()} from ${claim.payerName}`;
+          } else {
+            newStatus = 'DENIED';
+            activitySeverity = 'error';
+            activityType = 'claim_denied';
+
+            updatedClaims[claimIdx] = {
+              ...updatedClaims[claimIdx],
+              status: newStatus,
+              updatedAt: new Date().toISOString(),
+            };
+
+            activityMessage = `Claim ${claim.claimNumber} denied after remittance review by ${claim.payerName}`;
+          }
+        } else {
+          // Advance to next pipeline stage
+          newStatus = PIPELINE_STAGES[stageIdx + 1] as ClaimStatus;
+
+          updatedClaims[claimIdx] = {
+            ...updatedClaims[claimIdx],
+            status: newStatus,
+            updatedAt: new Date().toISOString(),
+          };
+
+          activitySeverity = 'info';
+          activityType = 'claim_submitted';
+          activityMessage = `Claim ${claim.claimNumber} advanced to ${newStatus.replace(/_/g, ' ')} stage`;
+        }
+
+        pendingNewActivities.push({
+          id: `sim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          type: activityType,
+          claimNumber: claim.claimNumber,
+          message: activityMessage,
+          timestamp: new Date().toISOString(),
+          agent: claim.currentAgent || randomPick(AGENT_NAMES),
+          severity: activitySeverity,
         });
       }
     }
@@ -256,6 +336,7 @@ export function useAgentSimulation(enabled = true) {
     // Apply batch update to store
     store.setState({
       agents: updatedAgents,
+      claims: updatedClaims,
       recentActivities: newActivities,
     } as Partial<typeof state>);
 

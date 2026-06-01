@@ -70,15 +70,23 @@ export function AnalyticsView() {
   const warning = kpis.filter((k) => k.status === 'WARNING').length;
   const offTarget = kpis.filter((k) => k.status === 'OFF_TARGET').length;
 
-  // Financial summary computed from claims
+  // Filter claims by selected time period
+  const filteredClaimsByPeriod = useMemo(() => {
+    const now = new Date();
+    const periodDays: Record<TimePeriod, number> = { week: 7, month: 30, quarter: 90 };
+    const cutoff = new Date(now.getTime() - periodDays[timePeriod] * 24 * 60 * 60 * 1000);
+    return claims.filter(c => new Date(c.createdAt) >= cutoff);
+  }, [claims, timePeriod]);
+
+  // Financial summary computed from filtered claims
   const financialSummary = useMemo(() => {
-    const totalBilled = claims.reduce((sum, c) => sum + c.totalAmount, 0);
-    const totalCollected = claims.reduce((sum, c) => sum + c.paidAmount, 0);
+    const totalBilled = filteredClaimsByPeriod.reduce((sum, c) => sum + c.totalAmount, 0);
+    const totalCollected = filteredClaimsByPeriod.reduce((sum, c) => sum + c.paidAmount, 0);
     const collectionRate = totalBilled > 0 ? (totalCollected / totalBilled) * 100 : 0;
 
     // AR Days: weighted average based on claim age
     const now = new Date();
-    const totalWeightedDays = claims.reduce((sum, c) => {
+    const totalWeightedDays = filteredClaimsByPeriod.reduce((sum, c) => {
       const created = new Date(c.createdAt);
       const days = Math.max(0, (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
       return sum + days * c.totalAmount;
@@ -86,9 +94,9 @@ export function AnalyticsView() {
     const arDays = totalBilled > 0 ? totalWeightedDays / totalBilled : 0;
 
     return { totalBilled, totalCollected, collectionRate, arDays };
-  }, [claims]);
+  }, [filteredClaimsByPeriod]);
 
-  // Compute claims aging from claims data
+  // Compute claims aging from filtered claims data
   const claimsAging = useMemo(() => {
     const now = new Date();
     const buckets = [
@@ -99,7 +107,7 @@ export function AnalyticsView() {
     ];
 
     return buckets.map((b) => {
-      const matching = claims.filter((c) => {
+      const matching = filteredClaimsByPeriod.filter((c) => {
         const age = (now.getTime() - new Date(c.createdAt).getTime()) / (1000 * 60 * 60 * 24);
         return age >= b.min && age <= b.max;
       });
@@ -109,7 +117,7 @@ export function AnalyticsView() {
         amount: matching.reduce((sum, c) => sum + c.totalAmount, 0),
       };
     });
-  }, [claims]);
+  }, [filteredClaimsByPeriod]);
 
   // Agent performance data for heatmap
   const agentPerformance = useMemo(() => {
@@ -147,22 +155,27 @@ export function AnalyticsView() {
             <span className="text-sm font-medium">{offTarget} Off Target</span>
           </div>
         </div>
-        <Tabs value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
-          <TabsList className="h-8">
-            <TabsTrigger value="week" className="text-xs px-3 h-7">
-              <Calendar className="w-3 h-3 mr-1" />
-              This Week
-            </TabsTrigger>
-            <TabsTrigger value="month" className="text-xs px-3 h-7">
-              <Calendar className="w-3 h-3 mr-1" />
-              This Month
-            </TabsTrigger>
-            <TabsTrigger value="quarter" className="text-xs px-3 h-7">
-              <Calendar className="w-3 h-3 mr-1" />
-              This Quarter
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-3">
+          <Badge variant="secondary" className="text-[10px] h-6 gap-1">
+            {filteredClaimsByPeriod.length} claims in period
+          </Badge>
+          <Tabs value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
+            <TabsList className="h-8">
+              <TabsTrigger value="week" className="text-xs px-3 h-7">
+                <Calendar className="w-3 h-3 mr-1" />
+                This Week
+              </TabsTrigger>
+              <TabsTrigger value="month" className="text-xs px-3 h-7">
+                <Calendar className="w-3 h-3 mr-1" />
+                This Month
+              </TabsTrigger>
+              <TabsTrigger value="quarter" className="text-xs px-3 h-7">
+                <Calendar className="w-3 h-3 mr-1" />
+                This Quarter
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       {/* Financial Summary Cards */}
@@ -170,7 +183,7 @@ export function AnalyticsView() {
         <FinancialCard
           title="Total Billed"
           value={`EGP ${(financialSummary.totalBilled / 1000000).toFixed(2)}M`}
-          subtitle={`${claims.length} claims`}
+          subtitle={`${filteredClaimsByPeriod.length} claims`}
           icon={DollarSign}
           trend="up"
           trendValue="+12.3%"
@@ -179,7 +192,7 @@ export function AnalyticsView() {
         <FinancialCard
           title="Total Collected"
           value={`EGP ${(financialSummary.totalCollected / 1000000).toFixed(2)}M`}
-          subtitle={`${Math.round((financialSummary.totalCollected / financialSummary.totalBilled) * 100)}% of billed`}
+          subtitle={financialSummary.totalBilled > 0 ? `${Math.round((financialSummary.totalCollected / financialSummary.totalBilled) * 100)}% of billed` : '0% of billed'}
           icon={Wallet}
           trend="up"
           trendValue="+8.1%"
@@ -270,7 +283,7 @@ export function AnalyticsView() {
               {/* Center label */}
               <div className="absolute pointer-events-none" style={{ transform: 'translate(-50%, -50%)', marginTop: '-10px' }}>
                 <div className="text-center">
-                  <p className="text-2xl font-bold">{claims.length}</p>
+                  <p className="text-2xl font-bold">{filteredClaimsByPeriod.length}</p>
                   <p className="text-[10px] text-muted-foreground">Total Claims</p>
                 </div>
               </div>
@@ -339,8 +352,8 @@ export function AnalyticsView() {
                   <YAxis type="category" dataKey="bucket" tick={{ fontSize: 10 }} width={80} />
                   <Tooltip
                     contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                    formatter={(v: number, _name: string, props: { payload: { count: number } }) =>
-                      [`EGP ${(v / 1000).toFixed(0)}K (${props.payload.count} claims)`, 'Amount']
+                    formatter={(v: number, _name: string, props: { payload?: { count: number } }) =>
+                      [`EGP ${(v / 1000).toFixed(0)}K (${props?.payload?.count ?? 0} claims)`, 'Amount']
                     }
                   />
                   <Bar dataKey="amount" name="Amount" radius={[0, 4, 4, 0]}>

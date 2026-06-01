@@ -66,8 +66,10 @@ export async function POST(request: NextRequest) {
 
     // Try to use LLM SDK for intelligent responses
     try {
-      const { LLM } = await import('z-ai-web-dev-sdk');
-      const llm = new LLM();
+      const sdk = await import('z-ai-web-dev-sdk');
+      const LLMClass = sdk.LLM || sdk.default?.LLM;
+      if (!LLMClass) throw new Error('LLM not available in SDK');
+      const llm = new LLMClass();
 
       const systemPrompt = `You are the AI Orchestrator Assistant of the Veebase RCM Intelligence Platform — a provider-side, multi-agent Revenue Cycle Management system deployed for Egyptian hospitals and clinics.
 

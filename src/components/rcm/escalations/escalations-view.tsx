@@ -128,14 +128,22 @@ export function EscalationsView() {
 
       {/* Escalations list */}
       <div className="space-y-2">
-        {filtered.map((escalation) => (
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-4">
+            <CheckCircle2 className="w-12 h-12 text-emerald-400 mb-4" />
+            <p className="text-sm font-semibold text-muted-foreground">All escalations resolved!</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">No pending or acknowledged escalations match your filters</p>
+          </div>
+        ) : (
+        filtered.map((escalation) => (
           <EscalationCard
             key={escalation.id}
             escalation={escalation}
             onAcknowledge={() => acknowledgeEscalation(escalation.id)}
             onResolve={() => resolveEscalation(escalation.id)}
           />
-        ))}
+        ))
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ESCALATIONS } from '@/lib/rcm-data';
-import type { EscalationStatus } from '@/lib/rcm-types';
+import { db } from '@/lib/db';
+import type { EscalationStatus, EscalationRecord } from '@/lib/rcm-types';
 
 // In-memory store for mutation tracking (resets on server restart)
 // In production this would use the database
@@ -127,7 +128,7 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Apply the state change
+    // Apply the state change (in-memory override)
     if (action === 'acknowledge') {
       escalationOverrides.set(id, {
         ...escalationOverrides.get(id),
@@ -141,6 +142,31 @@ export async function PATCH(request: NextRequest) {
         resolvedAt: new Date().toISOString(),
         assignedTo: assignedTo || escalationOverrides.get(id)?.assignedTo || 'Current User',
       });
+    }
+
+    // Also try to persist to the database
+    try {
+      if (action === 'acknowledge') {
+        await db.escalation.update({
+          where: { id },
+          data: {
+            status: 'ACKNOWLEDGED',
+            assignedTo: assignedTo || 'Current User',
+          },
+        });
+      } else if (action === 'resolve') {
+        await db.escalation.update({
+          where: { id },
+          data: {
+            status: 'RESOLVED',
+            resolvedAt: new Date(),
+            assignedTo: assignedTo || escalationOverrides.get(id)?.assignedTo || 'Current User',
+          },
+        });
+      }
+    } catch (dbError) {
+      // Database update is best-effort; don't fail if record doesn't exist in DB
+      console.warn('DB escalation update failed (non-critical):', dbError);
     }
 
     const updated = getEscalations().find((e) => e.id === id);
