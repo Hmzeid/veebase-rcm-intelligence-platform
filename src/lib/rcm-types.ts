@@ -129,6 +129,25 @@ export interface WorkflowStage {
   timestamp?: string;
 }
 
+export interface AppealStrategy {
+  id: string;
+  strategyKey: 'A' | 'B' | 'C' | 'D' | 'E';
+  name: string;
+  description: string;
+  denialReasonMatch: string[];
+  successProbability: number;
+  estimatedRecoveryPct: number;
+  estimatedDays: number;
+  requiredDocuments: string[];
+}
+
+export interface ProhibitedAction {
+  id: string;
+  rule: string;
+  description: string;
+  enforced: boolean;
+}
+
 export interface AuditEntry {
   id: string;
   timestamp: string;

@@ -322,3 +322,114 @@ Stage Summary:
 - All charts use Recharts with responsive containers and dark mode support
 - Financial metrics computed live from Zustand store claims data
 - Lint passes cleanly, dev server stable on port 3000
+
+---
+Task ID: 11
+Agent: Dialog Fixer
+Task: Fix all dialog/modal overflow issues — convert Dialogs to full-screen Sheet panels
+
+Work Log:
+- Read worklog.md and all relevant files (claims-view.tsx, agents-view.tsx, claim-submit-dialog.tsx, rcm-store.ts, sheet.tsx)
+- Fixed missing `addClaim` action in /src/lib/rcm-store.ts — was referenced by claim-submit-dialog.tsx but not defined in the store
+  - Added addClaim to RCMStore interface
+  - Added addClaim implementation that prepends new claim to claims array
+- Converted /src/components/rcm/claims/claims-view.tsx — Claim detail Dialog → Sheet
+  - Replaced Dialog/DialogContent/DialogHeader/DialogTitle imports with Sheet/SheetContent/SheetHeader/SheetTitle
+  - Changed Dialog with max-h-[85vh] overflow-y-auto to Sheet with side="right", sm:max-w-2xl, overflow-y-auto, p-0
+  - Wrapped ClaimDetail content in div with p-6 padding
+  - Replaced DialogHeader/DialogTitle with SheetHeader/SheetTitle in ClaimDetail component
+- Converted /src/components/rcm/agents/agents-view.tsx — Agent detail Dialog → Sheet
+  - Removed Dialog/DialogContent/DialogHeader/DialogTitle/DialogTrigger imports
+  - Added Sheet/SheetContent/SheetHeader/SheetTitle imports
+  - Changed AgentCard and AgentDetailCard from DialogTrigger-wrapped cards to plain cards that call setSelectedAgent on click
+  - Moved AgentDetailDialog content into a controlled Sheet at the AgentsView level (open=!!selectedAgent)
+  - Renamed AgentDetailDialog to AgentDetailContent (no longer a dialog wrapper, just content)
+  - Sheet uses side="right", sm:max-w-lg, overflow-y-auto, p-0
+  - Content wrapped in div with p-6 padding
+  - Removed unused imports: X, ChevronRight, Button, ScrollArea
+- Converted /src/components/rcm/claims/claim-submit-dialog.tsx — Submit Dialog → Sheet
+  - Replaced Dialog/DialogContent/DialogHeader/DialogTitle/DialogTrigger/DialogFooter/DialogClose imports with Sheet/SheetContent/SheetHeader/SheetTitle/SheetFooter/SheetClose
+  - Changed from DialogTrigger-wrapped Button to standalone Button that sets open=true
+  - Sheet uses side="right", sm:max-w-xl, overflow-y-auto, p-0
+  - Content wrapped in div with p-6 and space-y-4
+  - Replaced DialogFooter with simple flex div for footer actions
+  - All form logic, validation, readiness/risk scoring, and submission preserved
+- Ran bun run lint — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- All 3 Dialog components converted to full-screen slide-out Sheet panels from the right side
+- Claim detail: Sheet with sm:max-w-2xl — no more tiny scrolling box
+- Agent detail: Sheet with sm:max-w-lg, controlled by store's selectedAgent — clicking card opens sheet
+- Claim submit: Sheet with sm:max-w-xl — form is fully visible without internal scrolling
+- Added missing addClaim action to store (was referenced but not implemented)
+- All Dialog imports removed from modified files, replaced with Sheet equivalents
+- Lint passes cleanly, dev server stable on port 3000
+
+---
+Task ID: 13
+Agent: Gap Analysis & Enhancement Builder
+Task: Build missing features from RCM Agentic AI specification — Claim Workflow Timeline, Confidence Scoring, Appeal Strategies, Prohibited Actions Guard
+
+Work Log:
+- Read worklog.md and all existing project files (rcm-types.ts, rcm-data.ts, rcm-store.ts, claims-view.tsx, sidebar-nav.tsx, dashboard-view.tsx, page.tsx)
+- Identified 5 gap areas from the original RCM Agentic AI specification
+- Updated /src/lib/rcm-types.ts — Added 2 new interfaces:
+  - AppealStrategy: strategyKey (A–E), name, description, denialReasonMatch, successProbability, estimatedRecoveryPct, estimatedDays, requiredDocuments
+  - ProhibitedAction: rule, description, enforced
+- Updated /src/lib/rcm-data.ts — Added 3 new data exports:
+  - CLAIM_AGENT_OUTPUTS (20 AgentOutput entries): Detailed agent processing outputs for 7 claims (claim-1, claim-3, claim-5, claim-7, claim-8, claim-9, claim-15)
+    - Each entry includes: agent, claim_id, timestamp, phase, output (structured), confidence (HIGH/MEDIUM/LOW), rationale, recommended_action, escalation_required, escalation_reason, hitl_gate, tags
+    - Covers full pipeline: EligibilityBenefits → PriorAuthorization → ChargeCapture → MedicalCoding → ClaimScrubSubmit → DenialPrediction → DenialManagement → PaymentPosting → FraudWasteAbuse
+    - Includes fraud flag (upcoding, phantom billing), prior auth denial, timely filing denial, underpayment, high-value review scenarios
+  - APPEAL_STRATEGIES (5 strategies A–E):
+    - A: Technical Correction (coding/billing errors, timely filing) — 72% success, 14 days
+    - B: Clinical Appeal (medical necessity) — 58% success, 30 days
+    - C: Contractual Appeal (payer contract terms) — 45% success, 45 days
+    - D: Peer-to-Peer Review — 62% success, 21 days
+    - E: External Review / Regulatory — 35% success, 90 days
+    - Each with denialReasonMatch, estimatedRecoveryPct, requiredDocuments
+  - PROHIBITED_ACTIONS (4 rules): No Auto-Accept Coding, No Auto-Write-Off, No Auto-Escalate to L5, No Suppress Fraud Flags
+- Rewrote /src/components/rcm/claims/claims-view.tsx — Major enhancement with 3 new features:
+  1. Processing Timeline Component:
+    - Vertical timeline with color-coded dots (emerald=normal, red=escalation, rose=fraud flag)
+    - Each timeline entry shows: agent display name, timestamp, confidence badge (HIGH=green, MEDIUM=amber, LOW=red, INSUFFICIENT_DATA=gray), HITL gate badge (APPROVE/REVIEW/AUTO)
+    - Output summary section with agent-specific rendering:
+      - EligibilityBenefits: coverage status, copay, benefits remaining
+      - PriorAuthorization: auth status badge, auth number, denial code
+      - ChargeCapture: charges captured, total captured, missing charges
+      - MedicalCoding: ICD-10 and CPT code lists
+      - ClaimScrubSubmit: readiness score, scrub result (PASS/FAIL badge), submission method
+      - DenialPrediction: denial probability bar, risk factors count
+      - DenialManagement: denial classification, appeal strategy badge, recovery estimate
+      - PaymentPosting: posted/contracted/variance amounts with color coding
+      - FraudWasteAbuse: pattern type, severity badge (CRITICAL/HIGH/MEDIUM)
+    - Rationale section with sparkle icon and detailed text
+    - Recommended action section with target icon
+    - Escalation notice (red banner) when escalation_required=true
+    - Tags with color-coded badges (COMPLIANCE_FLAG=rose, FRAUD_SENTINEL=rose, HIGH_VALUE_REVIEW=orange, etc.)
+  2. Appeal Strategy Panel (denied claims only):
+    - Shows when claim status is DENIED
+    - 5 strategy cards (A–E) with color-coded borders and icons
+    - Each card shows: strategy name, description, success probability (%), estimated recovery amount (EGP), estimated timeline (days), required documents (first 2 shown + "N more")
+    - RECOMMENDED badge on best strategy (from DenialManagement agent output)
+    - "Draft Appeal" button on each card with toast notification (strategy name + estimated recovery)
+    - Appeal deadline warning with amber banner showing deadline date
+  3. Enhanced ClaimDetail with new sections seamlessly integrated after HITL Gate
+- Updated /src/components/rcm/layout/sidebar-nav.tsx — Added Prohibited Actions Guard:
+  - Compact card in sidebar between navigation and footer
+  - ShieldAlert icon + "Prohibited Actions Guard" title + "ACTIVE" badge
+  - 4 rules listed with CheckCircle2 icons: No Auto-Accept Coding, No Auto-Write-Off, No Auto-Escalate to L5, No Suppress Fraud Flags
+  - Emerald color scheme with dark mode support
+  - Added ShieldAlert and CheckCircle2 icon imports
+- Ran bun run lint — passed with zero errors
+- Verified dev server compiling successfully
+
+Stage Summary:
+- Claim Workflow Timeline: Vertical timeline showing which agents processed each claim, with structured output summaries, confidence badges, HITL gates, rationale, recommended actions, and escalation notices
+- Confidence Scoring Display: 4 confidence levels (HIGH/MEDIUM/LOW/INSUFFICIENT_DATA) with color-coded badges visible in every timeline entry
+- Appeal Strategy Panel: 5 strategies (A–E) for denied claims with success probability, recovery estimates, required documents, and "Draft Appeal" action buttons
+- Prohibited Actions Guard: Visual indicator in sidebar showing 4 prohibited actions are enforced (No Auto-Accept Coding, No Auto-Write-Off, No Auto-Escalate to L5, No Suppress Fraud Flags)
+- 20 detailed agent output entries across 7 claims covering full RCM pipeline
+- 5 appeal strategies from specification with Egypt/NHIA context
+- Lint passes cleanly, dev server stable on port 3000

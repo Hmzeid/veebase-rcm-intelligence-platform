@@ -11,14 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+  SheetClose,
+} from '@/components/ui/sheet';
 import {
   Select,
   SelectContent,
@@ -187,247 +186,255 @@ export function ClaimSubmitDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-      <DialogTrigger asChild>
-        <Button size="sm" className="h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
-          <Plus className="w-3.5 h-3.5" />
-          New Claim
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-emerald-600" />
-            Submit New Claim
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Button
+        size="sm"
+        className="h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+        onClick={() => setOpen(true)}
+      >
+        <Plus className="w-3.5 h-3.5" />
+        New Claim
+      </Button>
 
-        {/* Readiness & Risk Indicators */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 rounded-lg bg-muted/50">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-semibold text-muted-foreground">Claim Readiness</span>
-              <span className={cn(
-                'text-sm font-bold',
-                readinessScore >= 80 ? 'text-emerald-600' :
-                readinessScore >= 50 ? 'text-amber-600' :
-                'text-red-600'
-              )}>
-                {readinessScore}%
-              </span>
-            </div>
-            <Progress
-              value={readinessScore}
-              className={cn(
-                'h-2',
-                readinessScore >= 80 ? '[&>div]:bg-emerald-500' :
-                readinessScore >= 50 ? '[&>div]:bg-amber-500' :
-                '[&>div]:bg-red-500'
-              )}
-            />
-          </div>
-          <div className="p-3 rounded-lg bg-muted/50">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-semibold text-muted-foreground">Denial Risk</span>
-              <span className={cn(
-                'text-sm font-bold flex items-center gap-1',
-                denialRiskScore >= 50 ? 'text-red-600' :
-                denialRiskScore >= 25 ? 'text-amber-600' :
-                'text-emerald-600'
-              )}>
-                {denialRiskScore >= 50 && <AlertTriangle className="w-3.5 h-3.5" />}
-                {denialRiskScore}%
-              </span>
-            </div>
-            <Progress
-              value={denialRiskScore}
-              className={cn(
-                'h-2',
-                denialRiskScore >= 50 ? '[&>div]:bg-red-500' :
-                denialRiskScore >= 25 ? '[&>div]:bg-amber-500' :
-                '[&>div]:bg-emerald-500'
-              )}
-            />
-          </div>
-        </div>
+      <Sheet open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+        <SheetContent side="right" className="sm:max-w-xl overflow-y-auto p-0">
+          <div className="p-6 space-y-4">
+            <SheetHeader className="p-0">
+              <SheetTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-emerald-600" />
+                Submit New Claim
+              </SheetTitle>
+            </SheetHeader>
 
-        {/* Form Fields */}
-        <div className="space-y-4">
-          {/* Patient Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="patientName" className="text-xs">Patient Name *</Label>
-              <Input
-                id="patientName"
-                placeholder="Full name"
-                value={patientName}
-                onChange={(e) => { setPatientName(e.target.value); if (errors.patientName) setErrors((prev) => ({ ...prev, patientName: undefined })); }}
-                className={cn('h-9', errors.patientName && 'border-red-500')}
-              />
-              {errors.patientName && <p className="text-[11px] text-red-500">{errors.patientName}</p>}
+            {/* Readiness & Risk Indicators */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 rounded-lg bg-muted/50">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground">Claim Readiness</span>
+                  <span className={cn(
+                    'text-sm font-bold',
+                    readinessScore >= 80 ? 'text-emerald-600' :
+                    readinessScore >= 50 ? 'text-amber-600' :
+                    'text-red-600'
+                  )}>
+                    {readinessScore}%
+                  </span>
+                </div>
+                <Progress
+                  value={readinessScore}
+                  className={cn(
+                    'h-2',
+                    readinessScore >= 80 ? '[&>div]:bg-emerald-500' :
+                    readinessScore >= 50 ? '[&>div]:bg-amber-500' :
+                    '[&>div]:bg-red-500'
+                  )}
+                />
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground">Denial Risk</span>
+                  <span className={cn(
+                    'text-sm font-bold flex items-center gap-1',
+                    denialRiskScore >= 50 ? 'text-red-600' :
+                    denialRiskScore >= 25 ? 'text-amber-600' :
+                    'text-emerald-600'
+                  )}>
+                    {denialRiskScore >= 50 && <AlertTriangle className="w-3.5 h-3.5" />}
+                    {denialRiskScore}%
+                  </span>
+                </div>
+                <Progress
+                  value={denialRiskScore}
+                  className={cn(
+                    'h-2',
+                    denialRiskScore >= 50 ? '[&>div]:bg-red-500' :
+                    denialRiskScore >= 25 ? '[&>div]:bg-amber-500' :
+                    '[&>div]:bg-emerald-500'
+                  )}
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="nationalId" className="text-xs">National ID (14 digits) *</Label>
-              <Input
-                id="nationalId"
-                placeholder="2990101XXXXXXXX"
-                value={nationalId}
-                onChange={(e) => { setNationalId(e.target.value.replace(/\D/g, '').slice(0, 14)); if (errors.nationalId) setErrors((prev) => ({ ...prev, nationalId: undefined })); }}
-                className={cn('h-9 font-mono', errors.nationalId && 'border-red-500')}
-              />
-              {errors.nationalId && <p className="text-[11px] text-red-500">{errors.nationalId}</p>}
+
+            {/* Form Fields */}
+            <div className="space-y-4">
+              {/* Patient Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="patientName" className="text-xs">Patient Name *</Label>
+                  <Input
+                    id="patientName"
+                    placeholder="Full name"
+                    value={patientName}
+                    onChange={(e) => { setPatientName(e.target.value); if (errors.patientName) setErrors((prev) => ({ ...prev, patientName: undefined })); }}
+                    className={cn('h-9', errors.patientName && 'border-red-500')}
+                  />
+                  {errors.patientName && <p className="text-[11px] text-red-500">{errors.patientName}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="nationalId" className="text-xs">National ID (14 digits) *</Label>
+                  <Input
+                    id="nationalId"
+                    placeholder="2990101XXXXXXXX"
+                    value={nationalId}
+                    onChange={(e) => { setNationalId(e.target.value.replace(/\D/g, '').slice(0, 14)); if (errors.nationalId) setErrors((prev) => ({ ...prev, nationalId: undefined })); }}
+                    className={cn('h-9 font-mono', errors.nationalId && 'border-red-500')}
+                  />
+                  {errors.nationalId && <p className="text-[11px] text-red-500">{errors.nationalId}</p>}
+                </div>
+              </div>
+
+              {/* Payer & Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Payer *</Label>
+                  <Select value={payer} onValueChange={(v) => { setPayer(v); if (errors.payer) setErrors((prev) => ({ ...prev, payer: undefined })); }}>
+                    <SelectTrigger className={cn('h-9', errors.payer && 'border-red-500')}>
+                      <SelectValue placeholder="Select payer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYER_OPTIONS.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[9px] h-4',
+                                p.type === 'NHIA' && 'border-emerald-300 text-emerald-700',
+                                p.type === 'PRIVATE' && 'border-amber-300 text-amber-700',
+                                p.type === 'SELF_PAY' && 'border-gray-300 text-gray-700'
+                              )}
+                            >
+                              {p.type}
+                            </Badge>
+                            {p.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.payer && <p className="text-[11px] text-red-500">{errors.payer}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="serviceDate" className="text-xs">Service Date *</Label>
+                  <Input
+                    id="serviceDate"
+                    type="date"
+                    value={serviceDate}
+                    onChange={(e) => { setServiceDate(e.target.value); if (errors.serviceDate) setErrors((prev) => ({ ...prev, serviceDate: undefined })); }}
+                    className={cn('h-9', errors.serviceDate && 'border-red-500')}
+                  />
+                  {errors.serviceDate && <p className="text-[11px] text-red-500">{errors.serviceDate}</p>}
+                </div>
+              </div>
+
+              {/* Amount & Department */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="totalAmount" className="text-xs">Total Amount (EGP) *</Label>
+                  <Input
+                    id="totalAmount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={totalAmount}
+                    onChange={(e) => { setTotalAmount(e.target.value); if (errors.totalAmount) setErrors((prev) => ({ ...prev, totalAmount: undefined })); }}
+                    className={cn('h-9 font-mono', errors.totalAmount && 'border-red-500')}
+                  />
+                  {errors.totalAmount && <p className="text-[11px] text-red-500">{errors.totalAmount}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Department *</Label>
+                  <Select value={department} onValueChange={(v) => { setDepartment(v); if (errors.department) setErrors((prev) => ({ ...prev, department: undefined })); }}>
+                    <SelectTrigger className={cn('h-9', errors.department && 'border-red-500')}>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEPARTMENT_OPTIONS.map((d) => (
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.department && <p className="text-[11px] text-red-500">{errors.department}</p>}
+                </div>
+              </div>
+
+              {/* Codes */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="procedureCode" className="text-xs">Procedure Code (CPT) *</Label>
+                  <Input
+                    id="procedureCode"
+                    placeholder="e.g. 99213"
+                    value={procedureCode}
+                    onChange={(e) => { setProcedureCode(e.target.value.toUpperCase()); if (errors.procedureCode) setErrors((prev) => ({ ...prev, procedureCode: undefined })); }}
+                    className={cn('h-9 font-mono', errors.procedureCode && 'border-red-500')}
+                  />
+                  {errors.procedureCode && <p className="text-[11px] text-red-500">{errors.procedureCode}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="diagnosisCode" className="text-xs">Diagnosis Code (ICD-10) *</Label>
+                  <Input
+                    id="diagnosisCode"
+                    placeholder="e.g. I21.0"
+                    value={diagnosisCode}
+                    onChange={(e) => { setDiagnosisCode(e.target.value.toUpperCase()); if (errors.diagnosisCode) setErrors((prev) => ({ ...prev, diagnosisCode: undefined })); }}
+                    className={cn('h-9 font-mono', errors.diagnosisCode && 'border-red-500')}
+                  />
+                  {errors.diagnosisCode && <p className="text-[11px] text-red-500">{errors.diagnosisCode}</p>}
+                </div>
+              </div>
+
+              {/* Prior Auth Switch */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                <div className="space-y-0.5">
+                  <Label className="text-xs font-medium">Prior Authorization Required</Label>
+                  <p className="text-[10px] text-muted-foreground">Enable if this service requires pre-approval from the payer</p>
+                </div>
+                <Switch
+                  checked={priorAuthRequired}
+                  onCheckedChange={setPriorAuthRequired}
+                />
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-1.5">
+                <Label htmlFor="notes" className="text-xs">Notes</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Additional notes or special instructions..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="min-h-[70px] text-sm resize-none"
+                />
+              </div>
+
+              {/* HITL Gate notice */}
+              <div className="flex items-center gap-2 p-2.5 rounded-md bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                  This claim will enter the pipeline with <strong>HITL Gate: REVIEW</strong> (Phase 1). A human reviewer must approve before submission.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer actions */}
+            <div className="flex items-center gap-2 pt-2">
+              <SheetClose asChild>
+                <Button variant="outline" size="sm" className="h-9">Cancel</Button>
+              </SheetClose>
+              <Button
+                size="sm"
+                className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={handleSubmit}
+              >
+                <FileText className="w-3.5 h-3.5 mr-1.5" />
+                Submit Claim
+              </Button>
             </div>
           </div>
-
-          {/* Payer & Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Payer *</Label>
-              <Select value={payer} onValueChange={(v) => { setPayer(v); if (errors.payer) setErrors((prev) => ({ ...prev, payer: undefined })); }}>
-                <SelectTrigger className={cn('h-9', errors.payer && 'border-red-500')}>
-                  <SelectValue placeholder="Select payer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAYER_OPTIONS.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'text-[9px] h-4',
-                            p.type === 'NHIA' && 'border-emerald-300 text-emerald-700',
-                            p.type === 'PRIVATE' && 'border-amber-300 text-amber-700',
-                            p.type === 'SELF_PAY' && 'border-gray-300 text-gray-700'
-                          )}
-                        >
-                          {p.type}
-                        </Badge>
-                        {p.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.payer && <p className="text-[11px] text-red-500">{errors.payer}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="serviceDate" className="text-xs">Service Date *</Label>
-              <Input
-                id="serviceDate"
-                type="date"
-                value={serviceDate}
-                onChange={(e) => { setServiceDate(e.target.value); if (errors.serviceDate) setErrors((prev) => ({ ...prev, serviceDate: undefined })); }}
-                className={cn('h-9', errors.serviceDate && 'border-red-500')}
-              />
-              {errors.serviceDate && <p className="text-[11px] text-red-500">{errors.serviceDate}</p>}
-            </div>
-          </div>
-
-          {/* Amount & Department */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="totalAmount" className="text-xs">Total Amount (EGP) *</Label>
-              <Input
-                id="totalAmount"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value={totalAmount}
-                onChange={(e) => { setTotalAmount(e.target.value); if (errors.totalAmount) setErrors((prev) => ({ ...prev, totalAmount: undefined })); }}
-                className={cn('h-9 font-mono', errors.totalAmount && 'border-red-500')}
-              />
-              {errors.totalAmount && <p className="text-[11px] text-red-500">{errors.totalAmount}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Department *</Label>
-              <Select value={department} onValueChange={(v) => { setDepartment(v); if (errors.department) setErrors((prev) => ({ ...prev, department: undefined })); }}>
-                <SelectTrigger className={cn('h-9', errors.department && 'border-red-500')}>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DEPARTMENT_OPTIONS.map((d) => (
-                    <SelectItem key={d} value={d}>{d}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.department && <p className="text-[11px] text-red-500">{errors.department}</p>}
-            </div>
-          </div>
-
-          {/* Codes */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="procedureCode" className="text-xs">Procedure Code (CPT) *</Label>
-              <Input
-                id="procedureCode"
-                placeholder="e.g. 99213"
-                value={procedureCode}
-                onChange={(e) => { setProcedureCode(e.target.value.toUpperCase()); if (errors.procedureCode) setErrors((prev) => ({ ...prev, procedureCode: undefined })); }}
-                className={cn('h-9 font-mono', errors.procedureCode && 'border-red-500')}
-              />
-              {errors.procedureCode && <p className="text-[11px] text-red-500">{errors.procedureCode}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="diagnosisCode" className="text-xs">Diagnosis Code (ICD-10) *</Label>
-              <Input
-                id="diagnosisCode"
-                placeholder="e.g. I21.0"
-                value={diagnosisCode}
-                onChange={(e) => { setDiagnosisCode(e.target.value.toUpperCase()); if (errors.diagnosisCode) setErrors((prev) => ({ ...prev, diagnosisCode: undefined })); }}
-                className={cn('h-9 font-mono', errors.diagnosisCode && 'border-red-500')}
-              />
-              {errors.diagnosisCode && <p className="text-[11px] text-red-500">{errors.diagnosisCode}</p>}
-            </div>
-          </div>
-
-          {/* Prior Auth Switch */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-            <div className="space-y-0.5">
-              <Label className="text-xs font-medium">Prior Authorization Required</Label>
-              <p className="text-[10px] text-muted-foreground">Enable if this service requires pre-approval from the payer</p>
-            </div>
-            <Switch
-              checked={priorAuthRequired}
-              onCheckedChange={setPriorAuthRequired}
-            />
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-1.5">
-            <Label htmlFor="notes" className="text-xs">Notes</Label>
-            <Textarea
-              id="notes"
-              placeholder="Additional notes or special instructions..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="min-h-[70px] text-sm resize-none"
-            />
-          </div>
-
-          {/* HITL Gate notice */}
-          <div className="flex items-center gap-2 p-2.5 rounded-md bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-            <p className="text-[11px] text-amber-700 dark:text-amber-300">
-              This claim will enter the pipeline with <strong>HITL Gate: REVIEW</strong> (Phase 1). A human reviewer must approve before submission.
-            </p>
-          </div>
-        </div>
-
-        <DialogFooter className="gap-2 pt-2">
-          <DialogClose asChild>
-            <Button variant="outline" size="sm" className="h-9">Cancel</Button>
-          </DialogClose>
-          <Button
-            size="sm"
-            className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white"
-            onClick={handleSubmit}
-          >
-            <FileText className="w-3.5 h-3.5 mr-1.5" />
-            Submit Claim
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }

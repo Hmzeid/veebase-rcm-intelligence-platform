@@ -3,13 +3,11 @@
 import { useRCMStore } from '@/lib/rcm-store';
 import { AgentRecord, AgentStatusType, AgentCategory } from '@/lib/rcm-types';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   ShieldCheck,
   FileCheck,
@@ -27,10 +25,8 @@ import {
   Clock,
   Zap,
   ArrowRight,
-  X,
-  ChevronRight,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -63,7 +59,7 @@ const categoryInfo: Record<AgentCategory, { label: string; color: string; desc: 
 };
 
 export function AgentsView() {
-  const { agents } = useRCMStore();
+  const { agents, selectedAgent, setSelectedAgent } = useRCMStore();
 
   const linearAgents = agents.filter((a) => a.category === 'LINEAR');
   const sentinelAgents = agents.filter((a) => a.category === 'SENTINEL');
@@ -130,6 +126,15 @@ export function AgentsView() {
           ))}
         </div>
       </div>
+
+      {/* Agent detail sheet */}
+      <Sheet open={!!selectedAgent} onOpenChange={(open) => !open && setSelectedAgent(null)}>
+        <SheetContent side="right" className="sm:max-w-lg overflow-y-auto p-0">
+          <div className="p-6">
+            {selectedAgent && <AgentDetailContent agent={selectedAgent} />}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -137,29 +142,28 @@ export function AgentsView() {
 function AgentCard({ agent }: { agent: AgentRecord }) {
   const Icon = iconMap[agent.icon] || ShieldCheck;
   const colors = statusColors[agent.status];
+  const { setSelectedAgent } = useRCMStore();
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-          <Card className={cn('cursor-pointer min-w-[130px] transition-shadow hover:shadow-md border', colors.bg)}>
-            <CardContent className="p-3 text-center">
-              <div className={cn('mx-auto w-8 h-8 rounded-lg flex items-center justify-center mb-2', colors.bg)}>
-                <Icon className={cn('w-4 h-4', colors.text)} />
-              </div>
-              <p className="text-[11px] font-semibold leading-tight">{agent.displayName}</p>
-              <div className="flex items-center justify-center gap-1 mt-1.5">
-                <span className={cn('w-1.5 h-1.5 rounded-full', colors.dot)} />
-                <span className={cn('text-[9px] font-medium', colors.text)}>
-                  {agent.status}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </DialogTrigger>
-      <AgentDetailDialog agent={agent} />
-    </Dialog>
+    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+      <Card
+        className={cn('cursor-pointer min-w-[130px] transition-shadow hover:shadow-md border', colors.bg)}
+        onClick={() => setSelectedAgent(agent)}
+      >
+        <CardContent className="p-3 text-center">
+          <div className={cn('mx-auto w-8 h-8 rounded-lg flex items-center justify-center mb-2', colors.bg)}>
+            <Icon className={cn('w-4 h-4', colors.text)} />
+          </div>
+          <p className="text-[11px] font-semibold leading-tight">{agent.displayName}</p>
+          <div className="flex items-center justify-center gap-1 mt-1.5">
+            <span className={cn('w-1.5 h-1.5 rounded-full', colors.dot)} />
+            <span className={cn('text-[9px] font-medium', colors.text)}>
+              {agent.status}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -167,71 +171,70 @@ function AgentDetailCard({ agent }: { agent: AgentRecord }) {
   const Icon = iconMap[agent.icon] || ShieldCheck;
   const colors = statusColors[agent.status];
   const catInfo = categoryInfo[agent.category];
+  const { setSelectedAgent } = useRCMStore();
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', colors.bg)}>
-                  <Icon className={cn('w-5 h-5', colors.text)} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">{agent.displayName}</p>
-                  <Badge variant="outline" className={cn('text-[9px] h-4 mt-1', catInfo.color)}>
-                    {catInfo.label}
-                  </Badge>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className={cn('w-2 h-2 rounded-full', colors.dot)} />
-                <span className={cn('text-xs font-medium', colors.text)}>
-                  {agent.status}
-                </span>
-              </div>
+    <Card
+      className="cursor-pointer hover:shadow-md transition-shadow"
+      onClick={() => setSelectedAgent(agent)}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', colors.bg)}>
+              <Icon className={cn('w-5 h-5', colors.text)} />
             </div>
-            <p className="text-xs text-muted-foreground mt-3 leading-relaxed line-clamp-2">
-              {agent.description}
-            </p>
-            <div className="flex items-center gap-4 mt-3">
-              <div className="text-center">
-                <p className="text-sm font-bold">{agent.claimsProcessed}</p>
-                <p className="text-[10px] text-muted-foreground">Processed</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-bold">{agent.activeClaims}</p>
-                <p className="text-[10px] text-muted-foreground">Active</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-bold">{agent.avgProcessingMs}ms</p>
-                <p className="text-[10px] text-muted-foreground">Avg Time</p>
-              </div>
-              {agent.errorCount > 0 && (
-                <div className="text-center">
-                  <p className="text-sm font-bold text-red-600">{agent.errorCount}</p>
-                  <p className="text-[10px] text-muted-foreground">Errors</p>
-                </div>
-              )}
+            <div>
+              <p className="text-sm font-semibold">{agent.displayName}</p>
+              <Badge variant="outline" className={cn('text-[9px] h-4 mt-1', catInfo.color)}>
+                {catInfo.label}
+              </Badge>
             </div>
-          </CardContent>
-        </Card>
-      </DialogTrigger>
-      <AgentDetailDialog agent={agent} />
-    </Dialog>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className={cn('w-2 h-2 rounded-full', colors.dot)} />
+            <span className={cn('text-xs font-medium', colors.text)}>
+              {agent.status}
+            </span>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-3 leading-relaxed line-clamp-2">
+          {agent.description}
+        </p>
+        <div className="flex items-center gap-4 mt-3">
+          <div className="text-center">
+            <p className="text-sm font-bold">{agent.claimsProcessed}</p>
+            <p className="text-[10px] text-muted-foreground">Processed</p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-bold">{agent.activeClaims}</p>
+            <p className="text-[10px] text-muted-foreground">Active</p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-bold">{agent.avgProcessingMs}ms</p>
+            <p className="text-[10px] text-muted-foreground">Avg Time</p>
+          </div>
+          {agent.errorCount > 0 && (
+            <div className="text-center">
+              <p className="text-sm font-bold text-red-600">{agent.errorCount}</p>
+              <p className="text-[10px] text-muted-foreground">Errors</p>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-function AgentDetailDialog({ agent }: { agent: AgentRecord }) {
+function AgentDetailContent({ agent }: { agent: AgentRecord }) {
   const Icon = iconMap[agent.icon] || ShieldCheck;
   const colors = statusColors[agent.status];
   const catInfo = categoryInfo[agent.category];
 
   return (
-    <DialogContent className="max-w-lg">
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-3">
+    <div className="space-y-4">
+      <SheetHeader className="p-0">
+        <SheetTitle className="flex items-center gap-3">
           <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', colors.bg)}>
             <Icon className={cn('w-5 h-5', colors.text)} />
           </div>
@@ -246,48 +249,46 @@ function AgentDetailDialog({ agent }: { agent: AgentRecord }) {
               </Badge>
             </div>
           </div>
-        </DialogTitle>
-      </DialogHeader>
+        </SheetTitle>
+      </SheetHeader>
 
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground leading-relaxed">{agent.description}</p>
+      <p className="text-sm text-muted-foreground leading-relaxed">{agent.description}</p>
 
-        <Separator />
+      <Separator />
 
-        <div className="grid grid-cols-2 gap-4">
-          <StatBox label="Claims Processed" value={agent.claimsProcessed.toString()} />
-          <StatBox label="Active Claims" value={agent.activeClaims.toString()} />
-          <StatBox label="Avg Processing" value={`${agent.avgProcessingMs}ms`} />
-          <StatBox label="Errors" value={agent.errorCount.toString()} alert={agent.errorCount > 0} />
-        </div>
+      <div className="grid grid-cols-2 gap-4">
+        <StatBox label="Claims Processed" value={agent.claimsProcessed.toString()} />
+        <StatBox label="Active Claims" value={agent.activeClaims.toString()} />
+        <StatBox label="Avg Processing" value={`${agent.avgProcessingMs}ms`} />
+        <StatBox label="Errors" value={agent.errorCount.toString()} alert={agent.errorCount > 0} />
+      </div>
 
-        <Separator />
+      <Separator />
 
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground mb-2">Agent Category</p>
-          <div className={cn('p-3 rounded-lg', catInfo.color)}>
-            <p className="text-xs font-semibold">{catInfo.label}</p>
-            <p className="text-[11px] opacity-80 mt-0.5">{catInfo.desc}</p>
-          </div>
-        </div>
-
-        {agent.lastActivity && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Clock className="w-3 h-3" />
-            Last activity: {formatDistanceToNow(new Date(agent.lastActivity), { addSuffix: true })}
-          </div>
-        )}
-
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground mb-2">HITL Gate Status</p>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs">
-              Phase {agent.category === 'LINEAR' ? '1 — Review Required' : '1 — Query Only'}
-            </Badge>
-          </div>
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground mb-2">Agent Category</p>
+        <div className={cn('p-3 rounded-lg', catInfo.color)}>
+          <p className="text-xs font-semibold">{catInfo.label}</p>
+          <p className="text-[11px] opacity-80 mt-0.5">{catInfo.desc}</p>
         </div>
       </div>
-    </DialogContent>
+
+      {agent.lastActivity && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Clock className="w-3 h-3" />
+          Last activity: {formatDistanceToNow(new Date(agent.lastActivity), { addSuffix: true })}
+        </div>
+      )}
+
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground mb-2">HITL Gate Status</p>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">
+            Phase {agent.category === 'LINEAR' ? '1 — Review Required' : '1 — Query Only'}
+          </Badge>
+        </div>
+      </div>
+    </div>
   );
 }
 

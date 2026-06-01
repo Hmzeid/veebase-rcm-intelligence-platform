@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Veebase RCM Intelligence Platform — White Paper</title>
+<style>
+  :root {
+    --emerald-50: #ecfdf5; --emerald-100: #d1fae5; --emerald-200: #a7f3d0;
+    --emerald-300: #6ee7b7; --emerald-400: #34d399; --emerald-500: #10b981;
+    --emerald-600: #059669; --emerald-700: #047857; --emerald-800: #065f46;
+    --emerald-900: #064e3b; --emerald-950: #022c22;
+    --slate-50: #f8fafc; --slate-100: #f1f5f9; --slate-200: #e2e8f0;
+    --slate-300: #cbd5e1; --slate-400: #94a3b8; --slate-500: #64748b;
+    --slate-600: #475569; --slate-700: #334155; --slate-800: #1e293b;
+    --slate-900: #0f172a;
+    --amber-500: #f59e0b; --red-500: #ef4444; --sky-500: #0ea5e9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--slate-800); line-height: 1.7; background: #fff; }
+  
+  /* Cover */
+  .cover { min-height: 100vh; background: linear-gradient(135deg, var(--emerald-950) 0%, var(--emerald-800) 40%, var(--emerald-700) 100%); display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .cover::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 20% 80%, rgba(16,185,129,0.15) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(14,165,233,0.1) 0%, transparent 50%); }
+  .cover-inner { text-align: center; color: #fff; position: relative; z-index: 1; padding: 2rem; max-width: 800px; }
+  .cover-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(16,185,129,0.2); border: 1px solid rgba(16,185,129,0.3); border-radius: 999px; padding: 6px 16px; font-size: 12px; color: var(--emerald-300); margin-bottom: 2rem; letter-spacing: 0.5px; text-transform: uppercase; }
+  .cover h1 { font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem; letter-spacing: -0.02em; }
+  .cover h1 span { background: linear-gradient(135deg, var(--emerald-300), var(--emerald-400)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .cover .subtitle { font-size: 1.25rem; color: rgba(255,255,255,0.7); margin-bottom: 3rem; line-height: 1.6; }
+  .cover-meta { display: flex; gap: 3rem; justify-content: center; font-size: 14px; color: rgba(255,255,255,0.5); }
+  .cover-meta strong { color: rgba(255,255,255,0.8); }
+  .cover-line { width: 80px; height: 3px; background: var(--emerald-400); margin: 2rem auto; border-radius: 2px; }
+
+  /* Page structure */
+  .page { max-width: 960px; margin: 0 auto; padding: 4rem 2rem; }
+  .page-wide { max-width: 1200px; margin: 0 auto; padding: 4rem 2rem; }
+  
+  /* Section headers */
+  .section-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--emerald-600); margin-bottom: 0.75rem; }
+  .section-label::before { content: ''; width: 20px; height: 2px; background: var(--emerald-500); border-radius: 1px; }
+  h2 { font-size: 2rem; font-weight: 700; color: var(--slate-900); margin-bottom: 1rem; letter-spacing: -0.01em; line-height: 1.2; }
+  h3 { font-size: 1.35rem; font-weight: 600; color: var(--slate-800); margin: 2rem 0 0.75rem; }
+  h4 { font-size: 1.1rem; font-weight: 600; color: var(--slate-700); margin: 1.5rem 0 0.5rem; }
+  p { margin-bottom: 1rem; color: var(--slate-600); }
+  .lead { font-size: 1.15rem; color: var(--slate-700); line-height: 1.8; }
+
+  /* Dividers */
+  .divider { border: none; height: 1px; background: var(--slate-200); margin: 3rem 0; }
+  .divider-accent { border: none; height: 2px; background: linear-gradient(90deg, var(--emerald-500), transparent); margin: 3rem 0; }
+
+  /* Stats grid */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
+  .stat-card { background: var(--slate-50); border: 1px solid var(--slate-200); border-radius: 12px; padding: 1.5rem; text-align: center; }
+  .stat-card .value { font-size: 2rem; font-weight: 800; color: var(--emerald-600); }
+  .stat-card .label { font-size: 13px; color: var(--slate-500); margin-top: 4px; }
+
+  /* Feature cards */
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
+  .feature-card { background: #fff; border: 1px solid var(--slate-200); border-radius: 12px; padding: 1.5rem; transition: box-shadow 0.2s; }
+  .feature-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .feature-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 1rem; }
+  .feature-icon.emerald { background: var(--emerald-100); color: var(--emerald-700); }
+  .feature-icon.amber { background: #fef3c7; color: #92400e; }
+  .feature-icon.sky { background: #e0f2fe; color: #075985; }
+  .feature-icon.rose { background: #ffe4e6; color: #9f1239; }
+  .feature-icon.violet { background: #ede9fe; color: #5b21b6; }
+  .feature-icon.teal { background: #ccfbf1; color: #115e59; }
+  .feature-card h4 { margin: 0 0 0.5rem; font-size: 1rem; }
+  .feature-card p { margin: 0; font-size: 14px; color: var(--slate-500); line-height: 1.6; }
+
+  /* Agent grid */
+  .agent-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; margin: 2rem 0; }
+  .agent-card { border: 1px solid var(--slate-200); border-radius: 12px; padding: 1.25rem; display: flex; gap: 1rem; }
+  .agent-num { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+  .agent-num.linear { background: var(--emerald-100); color: var(--emerald-700); }
+  .agent-num.sentinel { background: #ffe4e6; color: #9f1239; }
+  .agent-num.knowledge { background: #ede9fe; color: #5b21b6; }
+  .agent-num.analytics { background: #fef3c7; color: #92400e; }
+  .agent-card h4 { margin: 0 0 0.25rem; font-size: 0.95rem; }
+  .agent-card .agent-type { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .agent-card .agent-type.linear { color: var(--emerald-600); }
+  .agent-card .agent-type.sentinel { color: #e11d48; }
+  .agent-card .agent-type.knowledge { color: #7c3aed; }
+  .agent-card .agent-type.analytics { color: #d97706; }
+  .agent-card p { margin: 0; font-size: 13px; color: var(--slate-500); line-height: 1.5; }
+
+  /* Workflow diagram */
+  .workflow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 2rem 0; padding: 1.5rem; background: var(--slate-50); border-radius: 12px; border: 1px solid var(--slate-200); }
+  .wf-step { background: #fff; border: 1px solid var(--emerald-300); border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 600; color: var(--emerald-700); white-space: nowrap; }
+  .wf-arrow { color: var(--slate-400); font-size: 18px; }
+  .wf-cross { background: #fff; border: 1px solid var(--amber-500); border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #92400e; white-space: nowrap; }
+
+  /* Screenshot mock */
+  .screenshot { background: var(--slate-900); border-radius: 12px; overflow: hidden; margin: 2rem 0; box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
+  .screenshot-bar { background: var(--slate-800); padding: 10px 16px; display: flex; align-items: center; gap: 8px; }
+  .screenshot-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .screenshot-dot.r { background: #ef4444; }
+  .screenshot-dot.y { background: #f59e0b; }
+  .screenshot-dot.g { background: #22c55e; }
+  .screenshot-url { margin-left: 12px; background: var(--slate-700); border-radius: 4px; padding: 4px 12px; font-size: 11px; color: var(--slate-400); font-family: monospace; }
+  .screenshot-body { padding: 1.5rem; min-height: 280px; background: #fff; }
+  .screenshot-body.dark { background: var(--slate-900); color: var(--slate-300); }
+  .mock-kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .mock-kpi-card { background: var(--slate-50); border: 1px solid var(--slate-200); border-radius: 8px; padding: 12px; text-align: center; }
+  .mock-kpi-card .val { font-size: 1.25rem; font-weight: 700; color: var(--emerald-600); }
+  .mock-kpi-card .lbl { font-size: 10px; color: var(--slate-500); margin-top: 2px; }
+  .mock-chart { display: flex; align-items: flex-end; gap: 8px; height: 100px; padding: 12px 0; }
+  .mock-bar { border-radius: 4px 4px 0 0; min-width: 30px; transition: height 0.3s; }
+  .mock-agent-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .mock-agent { background: var(--emerald-50); border: 1px solid var(--emerald-200); border-radius: 6px; padding: 8px; display: flex; align-items: center; gap: 6px; }
+  .mock-agent .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .mock-agent .dot.active { background: var(--emerald-500); }
+  .mock-agent .dot.idle { background: var(--slate-400); }
+  .mock-agent .dot.processing { background: var(--amber-500); }
+  .mock-agent span { font-size: 10px; color: var(--slate-600); font-weight: 500; }
+  .mock-esc { display: flex; gap: 8px; margin-top: 12px; }
+  .mock-esc-level { padding: 8px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; text-align: center; }
+  .mock-esc-level.l1 { background: #e0f2fe; color: #075985; }
+  .mock-esc-level.l2 { background: #fef3c7; color: #92400e; }
+  .mock-esc-level.l3 { background: #ffedd5; color: #9a3412; }
+  .mock-esc-level.l4 { background: #fee2e2; color: #991b1b; }
+  .mock-esc-level.l5 { background: #ffe4e6; color: #9f1239; }
+  .mock-timeline { margin-top: 12px; }
+  .mock-timeline-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--slate-200); }
+  .mock-timeline-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .mock-timeline-text { font-size: 11px; color: var(--slate-600); }
+
+  /* HITL Matrix */
+  .hitl-matrix { width: 100%; border-collapse: separate; border-spacing: 0; margin: 1.5rem 0; font-size: 12px; border: 1px solid var(--slate-200); border-radius: 8px; overflow: hidden; }
+  .hitl-matrix th { background: var(--slate-800); color: #fff; padding: 10px 12px; font-weight: 600; text-align: center; }
+  .hitl-matrix td { padding: 8px 12px; text-align: center; border-bottom: 1px solid var(--slate-200); }
+  .hitl-matrix tr:last-child td { border-bottom: none; }
+  .hitl-matrix td:first-child { text-align: left; font-weight: 500; background: var(--slate-50); }
+  .cell-human { background: #fee2e2; color: #991b1b; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 600; }
+  .cell-conditional { background: #fef3c7; color: #92400e; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 600; }
+  .cell-auto { background: #d1fae5; color: #065f46; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 600; }
+  .cell-always { background: #fecaca; color: #991b1b; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 600; }
+
+  /* KPI Table */
+  .kpi-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 1.5rem 0; font-size: 13px; border: 1px solid var(--slate-200); border-radius: 8px; overflow: hidden; }
+  .kpi-table th { background: var(--slate-800); color: #fff; padding: 10px 14px; font-weight: 600; text-align: left; }
+  .kpi-table td { padding: 10px 14px; border-bottom: 1px solid var(--slate-200); }
+  .kpi-table tr:last-child td { border-bottom: none; }
+  .kpi-table tr:nth-child(even) { background: var(--slate-50); }
+  .on-target { color: var(--emerald-600); font-weight: 600; }
+  .warning { color: #d97706; font-weight: 600; }
+  .off-target { color: #dc2626; font-weight: 600; }
+
+  /* Pie chart CSS */
+  .pie-chart { width: 160px; height: 160px; border-radius: 50%; background: conic-gradient(var(--emerald-500) 0% 45%, var(--amber-500) 45% 85%, var(--slate-400) 85% 100%); margin: 1rem auto; position: relative; }
+  .pie-chart::after { content: 'Payer Mix'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70px; height: 70px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--slate-600); }
+  .pie-legend { display: flex; justify-content: center; gap: 1.5rem; margin-top: 0.75rem; font-size: 13px; }
+  .pie-legend span { display: flex; align-items: center; gap: 6px; }
+  .pie-legend .dot-emerald { width: 10px; height: 10px; border-radius: 50%; background: var(--emerald-500); }
+  .pie-legend .dot-amber { width: 10px; height: 10px; border-radius: 50%; background: var(--amber-500); }
+  .pie-legend .dot-slate { width: 10px; height: 10px; border-radius: 50%; background: var(--slate-400); }
+
+  /* Roadmap */
+  .roadmap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin: 2rem 0; }
+  .roadmap-phase { border: 2px solid var(--slate-200); border-radius: 12px; padding: 1.5rem; position: relative; }
+  .roadmap-phase.current { border-color: var(--emerald-500); background: var(--emerald-50); }
+  .roadmap-phase h4 { margin: 0 0 0.5rem; display: flex; align-items: center; gap: 8px; }
+  .phase-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+  .phase-badge.p1 { background: var(--emerald-100); color: var(--emerald-700); }
+  .phase-badge.p2 { background: #fef3c7; color: #92400e; }
+  .phase-badge.p3 { background: #e0f2fe; color: #075985; }
+  .roadmap-phase ul { list-style: none; padding: 0; margin: 0.75rem 0 0; }
+  .roadmap-phase li { font-size: 13px; color: var(--slate-600); padding: 4px 0; padding-left: 16px; position: relative; }
+  .roadmap-phase li::before { content: '→'; position: absolute; left: 0; color: var(--emerald-500); font-size: 12px; }
+
+  /* Escalation ladder */
+  .esc-ladder { display: flex; flex-direction: column; gap: 0; margin: 1.5rem 0; max-width: 500px; }
+  .esc-level { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-left: 3px solid; }
+  .esc-level.l1 { border-color: var(--sky-500); background: #e0f2fe; }
+  .esc-level.l2 { border-color: var(--amber-500); background: #fef3c7; }
+  .esc-level.l3 { border-color: #f97316; background: #ffedd5; }
+  .esc-level.l4 { border-color: var(--red-500); background: #fee2e2; }
+  .esc-level.l5 { border-color: #e11d48; background: #ffe4e6; }
+  .esc-level .num { font-weight: 700; font-size: 14px; }
+  .esc-level .name { font-size: 13px; font-weight: 500; }
+
+  /* Tech stack */
+  .tech-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .tech-item { background: var(--slate-50); border: 1px solid var(--slate-200); border-radius: 8px; padding: 1rem; text-align: center; }
+  .tech-item .tech-name { font-weight: 600; font-size: 14px; color: var(--slate-800); }
+  .tech-item .tech-desc { font-size: 11px; color: var(--slate-500); margin-top: 4px; }
+
+  /* Footer */
+  .paper-footer { background: var(--slate-900); color: var(--slate-400); padding: 3rem 2rem; text-align: center; margin-top: 4rem; }
+  .paper-footer p { color: var(--slate-400); font-size: 14px; }
+  .paper-footer a { color: var(--emerald-400); text-decoration: none; }
+
+  /* Two column layout */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 1.5rem 0; }
+  @media (max-width: 768px) {
+    .two-col { grid-template-columns: 1fr; }
+    .roadmap { grid-template-columns: 1fr; }
+    .mock-kpi { grid-template-columns: repeat(2, 1fr); }
+    .mock-agent-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Print */
+  @media print {
+    .cover { min-height: auto; padding: 4rem 2rem; }
+    .screenshot { box-shadow: none; border: 1px solid #ddd; }
+    .page, .page-wide { padding: 2rem 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== COVER PAGE ===================== -->
+<section class="cover">
+  <div class="cover-inner">
+    <div class="cover-badge">
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--emerald-400);"></span>
+      White Paper · May 2026
+    </div>
+    <h1>Veebase <span>RCM Intelligence Platform</span></h1>
+    <p class="subtitle">Provider-Side Revenue Cycle Management with Multi-Agent AI<br>Egypt · NHIA · HFCX · FHIR R4 Context</p>
+    <div class="cover-line"></div>
+    <div class="cover-meta">
+      <div><strong>Version</strong><br>1.0</div>
+      <div><strong>Classification</strong><br>Confidential</div>
+      <div><strong>Author</strong><br>Veebase Engineering</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== EXECUTIVE SUMMARY ===================== -->
+<section class="page">
+  <div class="section-label">Executive Summary</div>
+  <h2>Transforming Revenue Cycle Management with Agentic AI</h2>
+  <p class="lead">The Veebase RCM Intelligence Platform is a first-of-its-kind, multi-agent AI system designed specifically for Egyptian healthcare providers operating under the National Health Insurance Authority (NHIA) and HealthFlow Claims Exchange (HFCX) framework. It orchestrates 12 specialized AI agents across the entire revenue cycle — from eligibility verification through payment posting — while maintaining strict human-in-the-loop (HITL) controls aligned with Egypt's regulatory requirements.</p>
+  
+  <div class="stats">
+    <div class="stat-card">
+      <div class="value">12</div>
+      <div class="label">Specialized AI Agents</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">94%</div>
+      <div class="label">Target First-Pass Rate</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">≤4%</div>
+      <div class="label">Target Denial Rate</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">≤40d</div>
+      <div class="label">Target AR Days</div>
+    </div>
+  </div>
+
+  <p>The platform addresses the critical revenue leakage problem facing Egyptian hospitals — an estimated 5–8% of net patient revenue is lost annually to preventable denials, missed charges, underpayments, and untimely filings. By deploying AI agents that work alongside human operators in a phased approach, Veebase delivers immediate ROI while building toward full automation.</p>
+</section>
+
+<hr class="divider-accent">
+
+<!-- ===================== PROBLEM STATEMENT ===================== -->
+<section class="page">
+  <div class="section-label">Problem Statement</div>
+  <h2>The Revenue Cycle Crisis in Egyptian Healthcare</h2>
+  <p>Egypt's healthcare system is undergoing a historic transformation under the Universal Health Insurance Law (Law 2/2018). The NHIA now covers 60+ million citizens, creating unprecedented claims volume for providers. Yet the revenue cycle infrastructure remains largely manual, error-prone, and disconnected from the new HFCX digital claims rail.</p>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon rose">⚠</div>
+      <h4>High Denial Rates</h4>
+      <p>Egyptian hospitals face 5–12% claim denial rates, with medical necessity and authorization denials accounting for 50%+ of all rejections. Each denied claim costs EGP 500–2,000 in rework.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon amber">⏱</div>
+      <h4>Timely Filing Pressure</h4>
+      <p>NHIA requires claims within 30 days of service. Missing this window means zero reimbursement. Private TPAs allow 60 days per contract, but tracking is manual.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon sky">📉</div>
+      <h4>Silent Under-billing</h4>
+      <p>Charge capture gaps — services rendered but never billed — are estimated at 3–7% of total charges. This represents millions of EGP in lost revenue annually per hospital.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon violet">🔄</div>
+      <h4>Manual Processes</h4>
+      <p>Eligibility checks, prior auth submissions, payment reconciliation, and appeal drafting are still paper-based or semi-automated at most Egyptian hospitals.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon rose">🛡</div>
+      <h4>Fraud & Compliance Risk</h4>
+      <p>FRA-regulated TPAs and NHIA auditors are increasing scrutiny. Upcoding, unbundling, and phantom billing carry severe penalties including license revocation.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon emerald">🌐</div>
+      <h4>HFCX Adoption Gap</h4>
+      <p>The HFCX FHIR R4 + JWE claims rail is now mandatory, but many providers lack the technical infrastructure to submit and track claims digitally.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider-accent">
+
+<!-- ===================== SOLUTION OVERVIEW ===================== -->
+<section class="page">
+  <div class="section-label">Solution Overview</div>
+  <h2>Multi-Agent AI Architecture</h2>
+  <p class="lead">Veebase deploys 12 specialized AI agents — each with a single, well-defined responsibility — orchestrated by a Supervisor Agent that routes, sequences, monitors, and escalates across the entire revenue cycle.</p>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <span class="screenshot-dot r"></span>
+      <span class="screenshot-dot y"></span>
+      <span class="screenshot-dot g"></span>
+      <span class="screenshot-url">veebase-rcm.app — Operations Dashboard</span>
+    </div>
+    <div class="screenshot-body">
+      <div class="mock-kpi">
+        <div class="mock-kpi-card"><div class="val">107</div><div class="lbl">Active Claims</div></div>
+        <div class="mock-kpi-card"><div class="val">EGP 4.9M</div><div class="lbl">Monthly Revenue</div></div>
+        <div class="mock-kpi-card"><div class="val">7</div><div class="lbl">Pending Escalations</div></div>
+        <div class="mock-kpi-card"><div class="val">84%</div><div class="lbl">Avg Readiness</div></div>
+      </div>
+      <div class="mock-chart">
+        <div class="mock-bar" style="height:45%;width:8%;background:var(--sky-500);"></div>
+        <div class="mock-bar" style="height:30%;width:8%;background:var(--amber-500);"></div>
+        <div class="mock-bar" style="height:20%;width:8%;background:var(--emerald-500);"></div>
+        <div class="mock-bar" style="height:55%;width:8%;background:var(--emerald-500);"></div>
+        <div class="mock-bar" style="height:12%;width:8%;background:#f97316;"></div>
+        <div class="mock-bar" style="height:35%;width:8%;background:var(--sky-500);"></div>
+        <div class="mock-bar" style="height:25%;width:8%;background:var(--sky-500);"></div>
+        <div class="mock-bar" style="height:15%;width:8%;background:#84cc16;"></div>
+        <div class="mock-bar" style="height:65%;width:8%;background:var(--emerald-500);"></div>
+      </div>
+      <div class="mock-agent-grid" style="margin-top:12px;">
+        <div class="mock-agent"><span class="dot active"></span><span>Eligibility</span></div>
+        <div class="mock-agent"><span class="dot processing"></span><span>Prior Auth</span></div>
+        <div class="mock-agent"><span class="dot active"></span><span>Charge Capture</span></div>
+        <div class="mock-agent"><span class="dot active"></span><span>Medical Coding</span></div>
+        <div class="mock-agent"><span class="dot idle"></span><span>Claim Scrub</span></div>
+        <div class="mock-agent"><span class="dot idle"></span><span>Denial Pred.</span></div>
+        <div class="mock-agent"><span class="dot processing"></span><span>Denial Mgmt</span></div>
+        <div class="mock-agent"><span class="dot active"></span><span>Payment Post</span></div>
+        <div class="mock-agent"><span class="dot idle"></span><span>Patient Bill</span></div>
+        <div class="mock-agent"><span class="dot active"></span><span>Fraud Sentinel</span></div>
+        <div class="mock-agent"><span class="dot active"></span><span>Payer Rules</span></div>
+        <div class="mock-agent"><span class="dot idle"></span><span>Analytics</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Agent Workflow Pipeline</h3>
+  <p>Claims flow through 9 linear agents in sequence, with 3 cross-cutting agents monitoring, advising, and reporting across all stages:</p>
+
+  <div class="workflow">
+    <div class="wf-step">① Eligibility</div><span class="wf-arrow">→</span>
+    <div class="wf-step">② Prior Auth</div><span class="wf-arrow">→</span>
+    <div class="wf-step">③ Charge Capture</div><span class="wf-arrow">→</span>
+    <div class="wf-step">④ Coding</div><span class="wf-arrow">→</span>
+    <div class="wf-step">⑤ Scrub & Submit</div><span class="wf-arrow">→</span>
+    <div class="wf-step">⑥ Denial Predict</div><span class="wf-arrow">→</span>
+    <div class="wf-step">⑦ Denial Mgmt</div><span class="wf-arrow">→</span>
+    <div class="wf-step">⑧ Payment Post</div><span class="wf-arrow">→</span>
+    <div class="wf-step">⑨ Patient Bill</div>
+  </div>
+  <div class="workflow" style="margin-top:8px;">
+    <div class="wf-cross">🛡 Fraud & Necessity Sentinel</div>
+    <div class="wf-cross">📖 Payer Contract Rules</div>
+    <div class="wf-cross">📊 Analytics & Reporting</div>
+  </div>
+</section>
+
+<hr class="divider-accent">
+
+<!-- ===================== 12 AGENTS DEEP DIVE ===================== -->
+<section class="page-wide">
+  <div class="section-label">Agent Deep-Dive</div>
+  <h2>12 Specialized AI Agents</h2>
+  <p>Each agent has a single responsibility, defined inputs/outputs, confidence scoring, and HITL gate requirements. The Supervisor Agent orchestrates handoffs and manages escalation.</p>
+
+  <div class="agent-grid">
+    <div class="agent-card"><div class="agent-num linear">1</div><div><div class="agent-type linear">Linear · Sequence 1</div><h4>Eligibility & Benefits</h4><p>Verifies patient insurance coverage, benefits, copays, and demographic accuracy before service delivery. Queries NHIA CoverageEligibilityResponse via HFCX.</p></div></div>
+    <div class="agent-card"><div class="agent-num linear">2</div><div><div class="agent-type linear">Linear · Sequence 2</div><h4>Prior Authorization</h4><p>Manages preauthorization requirements, submits HFCX auth requests (use=preauthorization), and tracks approval status against NHIA 72-hour SLA.</p></div></div>
+    <div class="agent-card"><div class="agent-num linear">3</div><div><div class="agent-type linear">Linear · Sequence 3</div><h4>Charge Capture & Integrity</h4><p>Identifies billable services rendered but not yet captured as charges. Prevents silent under-billing by cross-referencing clinical orders with charge records.</p></div></div>
+    <div class="agent-card"><div class="agent-num linear">4</div><div><div class="agent-type linear">Linear · Sequence 4</div><h4>Medical Coding</h4><p>Proposes ICD-10, CPT, HCPCS codes from clinical documentation. ALWAYS requires certified coder review — no auto-accept regardless of confidence.</p></div></div>
+    <div class="agent-card"><div class="agent-num linear">5</div><div><div class="agent-type linear">Linear · Sequence 5</div><h4>Claim Scrubbing & Submission</h4><p>Validates claims against payer rules, scores readiness, and submits via HFCX FHIR R4 when ready. Uses JWE-protected payloads.</p></div></div>
+    <div class="agent-card"><div class="agent-num linear">6</div><div><div class="agent-type linear">Linear · Sequence 6</div><h4>Denial Prediction</h4><p>Scores denial probability before submission using ML patterns beyond rule-based scrubbing. Flags high-risk claims for pre-submission review.</p></div></div>
+    <div class="agent-card"><div class="agent-num linear">7</div><div><div class="agent-type linear">Linear · Sequence 7</div><h4>Denial Management & Appeals</h4><p>Classifies denials, selects appeal strategies (A–E), drafts appeal letters, and tracks recovery. Manages 30-day NHIA appeal window.</p></div></div>
+    <div class="agent-card"><div class="agent-num linear">8</div><div><div class="agent-type linear">Linear · Sequence 8</div><h4>Payment Posting & Reconciliation</h4><p>Posts payments accurately, detects underpayments by comparing against contracted rates from Payer Contract agent. Flags variances >EGP 3,000.</p></div></div>
+    <div class="agent-card"><div class="agent-num linear">9</div><div><div class="agent-type linear">Linear · Sequence 9</div><h4>Patient Billing & Collections</h4><p>Generates upfront estimates, final statements in Arabic and English, and manages collection follow-up. Targets self-pay collection rate of 80%.</p></div></div>
+    <div class="agent-card"><div class="agent-num sentinel">10</div><div><div class="agent-type sentinel">Sentinel · Cross-cutting</div><h4>Fraud, Waste & Medical Necessity</h4><p>Monitors all claims for upcoding, unbundling, phantom billing, and medical necessity issues. Runs independently of the linear pipeline.</p></div></div>
+    <div class="agent-card"><div class="agent-num knowledge">11</div><div><div class="agent-type knowledge">Knowledge · Queryable</div><h4>Payer Contract & Rules</h4><p>Queryable knowledge service serving fee schedules, auth requirements, edit libraries, timely filing limits, and appeal rules for all payers.</p></div></div>
+    <div class="agent-card"><div class="agent-num analytics">12</div><div><div class="agent-type analytics">Analytics · Reporting</div><h4>Analytics & Reporting</h4><p>Computes KPIs, produces trend narratives, root-cause analysis, and actionable recommendations for continuous revenue cycle improvement.</p></div></div>
+  </div>
+</section>
+
+<hr class="divider-accent">
+
+<!-- ===================== HITL GATES ===================== -->
+<section class="page">
+  <div class="section-label">Human-in-the-Loop</div>
+  <h2>HITL Gate Matrix</h2>
+  <p>The platform implements a 3-phase automation approach with strict human oversight. Certain actions (coding, write-offs, collections, high-value, compliance) ALWAYS require human approval regardless of phase.</p>
+
+  <table class="hitl-matrix">
+    <thead>
+      <tr><th>Action</th><th>Phase 1 — Assistive</th><th>Phase 2 — Conditional</th><th>Phase 3 — Autonomous</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Eligibility Verification</td><td><span class="cell-human">Human Review</span></td><td><span class="cell-conditional">Conditional Auto</span></td><td><span class="cell-auto">Auto-accept</span></td></tr>
+      <tr><td>Prior Auth Submission</td><td><span class="cell-human">Human Review</span></td><td><span class="cell-conditional">Conditional Auto</span></td><td><span class="cell-auto">Auto-accept</span></td></tr>
+      <tr><td>Medical Coding</td><td><span class="cell-always">ALWAYS Human</span></td><td><span class="cell-always">ALWAYS Human</span></td><td><span class="cell-always">ALWAYS Human</span></td></tr>
+      <tr><td>Claim Submission</td><td><span class="cell-human">Human Review</span></td><td><span class="cell-conditional">Conditional Auto</span></td><td><span class="cell-auto">Auto-accept</span></td></tr>
+      <tr><td>Write-off Approval</td><td><span class="cell-always">ALWAYS Human</span></td><td><span class="cell-always">ALWAYS Human</span></td><td><span class="cell-always">ALWAYS Human</span></td></tr>
+      <tr><td>Collections Action</td><td><span class="cell-always">ALWAYS Human</span></td><td><span class="cell-always">ALWAYS Human</span></td><td><span class="cell-always">ALWAYS Human</span></td></tr>
+      <tr><td>High-Value (EGP 50K+)</td><td><span class="cell-always">ALWAYS Human</span></td><td><span class="cell-always">ALWAYS Human</span></td><td><span class="cell-always">ALWAYS Human</span></td></tr>
+      <tr><td>Compliance Escalation</td><td><span class="cell-always">ALWAYS Human</span></td><td><span class="cell-always">ALWAYS Human</span></td><td><span class="cell-always">ALWAYS Human</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<hr class="divider-accent">
+
+<!-- ===================== ESCALATION LADDER ===================== -->
+<section class="page">
+  <div class="section-label">Escalation Framework</div>
+  <h2>5-Level Escalation Ladder</h2>
+  <p>When agents encounter issues beyond their confidence threshold or authority, they escalate through a structured 5-level ladder. Each level has defined roles, response times, and financial thresholds.</p>
+
+  <div class="esc-ladder">
+    <div class="esc-level l1"><span class="num">L1</span><span class="name">Front Desk / Registration — Demographic mismatches, eligibility errors</span></div>
+    <div class="esc-level l2"><span class="num">L2</span><span class="name">Billing Team — DNFB risk, charge capture gaps, submission errors</span></div>
+    <div class="esc-level l3"><span class="num">L3</span><span class="name">Senior Biller / RCM Manager — High-value claims (EGP 50K+), auth denials</span></div>
+    <div class="esc-level l4"><span class="num">L4</span><span class="name">Compliance Officer — Upcoding patterns, phantom billing, fraud flags</span></div>
+    <div class="esc-level l5"><span class="num">L5</span><span class="name">Medical Director — Medical necessity disputes, clinical documentation</span></div>
+  </div>
+
+  <div class="screenshot" style="margin-top:2rem;">
+    <div class="screenshot-bar">
+      <span class="screenshot-dot r"></span>
+      <span class="screenshot-dot y"></span>
+      <span class="screenshot-dot g"></span>
+      <span class="screenshot-url">veebase-rcm.app — Escalation Queue</span>
+    </div>
+    <div class="screenshot-body">
+      <div style="display:flex;gap:12px;margin-bottom:16px;">
+        <div style="background:#fee2e2;border-radius:8px;padding:12px;text-align:center;flex:1;"><strong style="color:#991b1b;">7</strong><br><span style="font-size:11px;color:#991b1b;">Pending</span></div>
+        <div style="background:#fef3c7;border-radius:8px;padding:12px;text-align:center;flex:1;"><strong style="color:#92400e;">2</strong><br><span style="font-size:11px;color:#92400e;">Acknowledged</span></div>
+        <div style="background:#d1fae5;border-radius:8px;padding:12px;text-align:center;flex:1;"><strong style="color:#065f46;">1</strong><br><span style="font-size:11px;color:#065f46;">Resolved</span></div>
+      </div>
+      <div class="mock-esc">
+        <div class="mock-esc-level l1">L1 · Front Desk</div>
+        <div class="mock-esc-level l2">L2 · Billing</div>
+        <div class="mock-esc-level l3">L3 · Senior Biller</div>
+        <div class="mock-esc-level l4">L4 · Compliance</div>
+        <div class="mock-esc-level l5">L5 · Medical Dir.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider-accent">
+
+<!-- ===================== ANALYTICS ===================== -->
+<section class="page">
+  <div class="section-label">Analytics & Reporting</div>
+  <h2>Real-Time Revenue Intelligence</h2>
+  <p>The Analytics & Reporting agent continuously computes 12 KPIs across operational, financial, and quality dimensions, with trend tracking and root-cause narratives.</p>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <span class="screenshot-dot r"></span>
+      <span class="screenshot-dot y"></span>
+      <span class="screenshot-dot g"></span>
+      <span class="screenshot-url">veebase-rcm.app — Analytics & Reporting</span>
+    </div>
+    <div class="screenshot-body">
+      <div class="mock-kpi" style="margin-bottom:16px;">
+        <div class="mock-kpi-card"><div class="val" style="font-size:1rem;">EGP 4.9M</div><div class="lbl">Total Billed</div></div>
+        <div class="mock-kpi-card"><div class="val" style="font-size:1rem;color:var(--emerald-600);">EGP 4.15M</div><div class="lbl">Total Collected</div></div>
+        <div class="mock-kpi-card"><div class="val" style="font-size:1rem;">84.7%</div><div class="lbl">Collection Rate</div></div>
+        <div class="mock-kpi-card"><div class="val" style="font-size:1rem;color:#d97706;">42d</div><div class="lbl">AR Days</div></div>
+      </div>
+      <div style="display:flex;gap:1rem;">
+        <div style="flex:1;">
+          <div class="mock-chart" style="height:80px;">
+            <div class="mock-bar" style="height:60%;width:12%;background:var(--emerald-500);"></div>
+            <div class="mock-bar" style="height:55%;width:12%;background:var(--emerald-500);"></div>
+            <div class="mock-bar" style="height:70%;width:12%;background:var(--emerald-500);"></div>
+            <div class="mock-bar" style="height:50%;width:12%;background:var(--emerald-500);"></div>
+            <div class="mock-bar" style="height:45%;width:12%;background:var(--emerald-500);"></div>
+            <div class="mock-bar" style="height:65%;width:12%;background:var(--emerald-500);"></div>
+          </div>
+          <div style="font-size:10px;text-align:center;color:var(--slate-500);">Revenue Trend (6 months)</div>
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex;flex-direction:column;gap:6px;padding:8px 0;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:10px;width:70px;color:var(--slate-500);">Med Nec.</span><div style="flex:1;height:6px;background:var(--slate-200);border-radius:3px;overflow:hidden;"><div style="width:28%;height:100%;background:#ef4444;border-radius:3px;"></div></span><span style="font-size:10px;color:var(--slate-500);">28%</span></div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:10px;width:70px;color:var(--slate-500);">Auth Req.</span><div style="flex:1;height:6px;background:var(--slate-200);border-radius:3px;overflow:hidden;"><div style="width:22%;height:100%;background:#ef4444;border-radius:3px;"></div></span><span style="font-size:10px;color:var(--slate-500);">22%</span></div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:10px;width:70px;color:var(--slate-500);">Coding</span><div style="flex:1;height:6px;background:var(--slate-200);border-radius:3px;overflow:hidden;"><div style="width:17%;height:100%;background:var(--amber-500);border-radius:3px;"></div></span><span style="font-size:10px;color:var(--slate-500);">17%</span></div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:10px;width:70px;color:var(--slate-500);">Eligibility</span><div style="flex:1;height:6px;background:var(--slate-200);border-radius:3px;overflow:hidden;"><div style="width:15%;height:100%;background:var(--amber-500);border-radius:3px;"></div></span><span style="font-size:10px;color:var(--slate-500);">15%</span></div>
+          </div>
+          <div style="font-size:10px;text-align:center;color:var(--slate-500);">Denial by Reason Code</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>KPI Targets & Current Performance</h3>
+  <table class="kpi-table">
+    <thead><tr><th>KPI</th><th>Target</th><th>Current</th><th>Status</th><th>Trend</th></tr></thead>
+    <tbody>
+      <tr><td>First-Pass Claim Rate</td><td>94%</td><td>92.4%</td><td class="warning">Warning</td><td>↑ Improving</td></tr>
+      <tr><td>Denial Rate</td><td>≤4%</td><td>5.2%</td><td class="warning">Warning</td><td>→ Stable</td></tr>
+      <tr><td>Preventable Denial Rate</td><td>≤2%</td><td>1.8%</td><td class="on-target">On Target</td><td>↑ Improving</td></tr>
+      <tr><td>Appeal Overturn Rate</td><td>≥60%</td><td>64.3%</td><td class="on-target">On Target</td><td>↑ Improving</td></tr>
+      <tr><td>AR Days</td><td>≤40</td><td>42</td><td class="warning">Warning</td><td>→ Stable</td></tr>
+      <tr><td>Net Collection Rate</td><td>96%</td><td>95.7%</td><td class="warning">Warning</td><td>→ Stable</td></tr>
+      <tr><td>Prior Auth Approval Rate</td><td>85%</td><td>82.1%</td><td class="off-target">Off Target</td><td>↓ Degrading</td></tr>
+      <tr><td>Patient Collection Rate</td><td>80%</td><td>71.4%</td><td class="off-target">Off Target</td><td>↓ Degrading</td></tr>
+      <tr><td>Coding Accuracy Rate</td><td>95%</td><td>96.2%</td><td class="on-target">On Target</td><td>↑ Improving</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<hr class="divider-accent">
+
+<!-- ===================== PAYER MIX ===================== -->
+<section class="page">
+  <div class="section-label">Market Context</div>
+  <h2>Egypt Healthcare Payer Landscape</h2>
+
+  <div class="two-col">
+    <div>
+      <p>Egypt's healthcare payer ecosystem is dominated by the NHIA (public) with a growing private TPA sector. Understanding each payer's rules, timely filing limits, and appeal processes is critical for revenue optimization.</p>
+      <div style="margin-top:1rem;">
+        <h4>NHIA — Public Payer (45%)</h4>
+        <ul style="font-size:14px;color:var(--slate-600);padding-left:1.25rem;margin:0.5rem 0;">
+          <li>Timely filing: 30 days post-service</li>
+          <li>Appeal window: 30 days from denial</li>
+          <li>Auth SLA: 72 hours</li>
+          <li>FHIR R4 via HFCX mandatory</li>
+        </ul>
+        <h4>Private TPAs (40%)</h4>
+        <ul style="font-size:14px;color:var(--slate-600);padding-left:1.25rem;margin:0.5rem 0;">
+          <li>Timely filing: 60 days (per contract)</li>
+          <li>FRA-regulated: MedRight, Globemed, Nextcare</li>
+          <li>X12 legacy adapter available</li>
+          <li>Contract-specific fee schedules</li>
+        </ul>
+        <h4>Self-Pay (15%)</h4>
+        <ul style="font-size:14px;color:var(--slate-600);padding-left:1.25rem;margin:0.5rem 0;">
+          <li>Upfront estimates required</li>
+          <li>Arabic + English statements</li>
+          <li>QR payment codes for mobile pay</li>
+          <li>Collection follow-up threshold: EGP 200</li>
+        </ul>
+      </div>
+    </div>
+    <div style="text-align:center;">
+      <div class="pie-chart"></div>
+      <div class="pie-legend">
+        <span><span class="dot-emerald"></span> NHIA 45%</span>
+        <span><span class="dot-amber"></span> Private 40%</span>
+        <span><span class="dot-slate"></span> Self-Pay 15%</span>
+      </div>
+      <div style="margin-top:2rem;">
+        <div class="screenshot" style="margin:0;">
+          <div class="screenshot-bar">
+            <span class="screenshot-dot r"></span><span class="screenshot-dot y"></span><span class="screenshot-dot g"></span>
+            <span class="screenshot-url">veebase-rcm.app — Payer Rules</span>
+          </div>
+          <div class="screenshot-body" style="min-height:120px;padding:12px;">
+            <div style="font-size:11px;font-weight:600;color:var(--emerald-700);margin-bottom:6px;">NHIA — Fee Schedule Rules</div>
+            <div style="font-size:10px;color:var(--slate-500);line-height:1.6;">Cardiology: CPT 93306 covered (outpatient)<br>Auth required: CPT 93458, 33533<br>Step therapy: Required for orthopedics<br>Filing: 30 days post-service</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider-accent">
+
+<!-- ===================== COMPLIANCE AUDIT ===================== -->
+<section class="page">
+  <div class="section-label">Compliance</div>
+  <h2>Audit Trail & Regulatory Compliance</h2>
+  <p>Every HITL decision, escalation, claim submission, and agent override is logged in an immutable audit trail. This ensures full traceability for NHIA audits, FRA compliance reviews, and internal quality programs.</p>
+
+  <div class="screenshot">
+    <div class="screenshot-bar">
+      <span class="screenshot-dot r"></span><span class="screenshot-dot y"></span><span class="screenshot-dot g"></span>
+      <span class="screenshot-url">veebase-rcm.app — Compliance Audit Trail</span>
+    </div>
+    <div class="screenshot-body">
+      <div style="display:flex;gap:12px;margin-bottom:12px;">
+        <div style="background:var(--slate-50);border:1px solid var(--slate-200);border-radius:6px;padding:8px 12px;text-align:center;flex:1;"><strong>20</strong><br><span style="font-size:10px;color:var(--slate-500);">Total Entries</span></div>
+        <div style="background:#fee2e2;border-radius:6px;padding:8px 12px;text-align:center;flex:1;"><strong style="color:#991b1b;">3</strong><br><span style="font-size:10px;color:#991b1b;">Critical</span></div>
+        <div style="background:#d1fae5;border-radius:6px;padding:8px 12px;text-align:center;flex:1;"><strong style="color:#065f46;">8</strong><br><span style="font-size:10px;color:#065f46;">HITL Decisions</span></div>
+        <div style="background:#fef3c7;border-radius:6px;padding:8px 12px;text-align:center;flex:1;"><strong style="color:#92400e;">5</strong><br><span style="font-size:10px;color:#92400e;">Pending Review</span></div>
+      </div>
+      <div class="mock-timeline">
+        <div class="mock-timeline-row"><div class="mock-timeline-dot" style="background:#ef4444;"></div><div class="mock-timeline-text"><strong>CRITICAL</strong> · HITL_REJECT · Dr. Ahmed (Medical Director) · CLM-2026-0008 · Phantom billing detected</div></div>
+        <div class="mock-timeline-row"><div class="mock-timeline-dot" style="background:#f97316;"></div><div class="mock-timeline-text"><strong>HIGH</strong> · ESCALATE · Sara Mahmoud (Billing) · CLM-2026-0007 · High-value claim EGP 67,500</div></div>
+        <div class="mock-timeline-row"><div class="mock-timeline-dot" style="background:#f59e0b;"></div><div class="mock-timeline-text"><strong>MEDIUM</strong> · SUBMIT_CLAIM · System · CLM-2026-0023 · Claim submitted via HFCX</div></div>
+        <div class="mock-timeline-row"><div class="mock-timeline-dot" style="background:#10b981;"></div><div class="mock-timeline-text"><strong>LOW</strong> · HITL_APPROVE · Karim Tarek (Senior Biller) · CLM-2026-0011 · Payment dispute resolved</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider-accent">
+
+<!-- ===================== TECHNOLOGY ===================== -->
+<section class="page">
+  <div class="section-label">Technology</div>
+  <h2>Technology Stack</h2>
+  <p>Built on a modern, cloud-native stack optimized for healthcare AI workloads in the Egyptian market.</p>
+
+  <div class="tech-grid">
+    <div class="tech-item"><div class="tech-name">Next.js 16</div><div class="tech-desc">App Router · SSR · React 19</div></div>
+    <div class="tech-item"><div class="tech-name">TypeScript 5</div><div class="tech-desc">Strict typing · End-to-end</div></div>
+    <div class="tech-item"><div class="tech-name">LangGraph</div><div class="tech-desc">Agent orchestration · DAG routing</div></div>
+    <div class="tech-item"><div class="tech-name">HFCX</div><div class="tech-desc">FHIR R4 · JWE · Claims rail</div></div>
+    <div class="tech-item"><div class="tech-name">PostgreSQL</div><div class="tech-desc">ACID · Audit trail · Prisma ORM</div></div>
+    <div class="tech-item"><div class="tech-name">DOKS</div><div class="tech-desc">DigitalOcean K8s · Auto-scale</div></div>
+    <div class="tech-item"><div class="tech-name">Redis</div><div class="tech-desc">Caching · Session · Queue</div></div>
+    <div class="tech-item"><div class="tech-name">Tailwind CSS 4</div><div class="tech-desc">Responsive · Dark mode</div></div>
+    <div class="tech-item"><div class="tech-name">Recharts</div><div class="tech-desc">Interactive charts · Real-time</div></div>
+    <div class="tech-item"><div class="tech-name">Zustand</div><div class="tech-desc">State management · Lightweight</div></div>
+    <div class="tech-item"><div class="tech-name">Framer Motion</div><div class="tech-desc">Animations · Transitions</div></div>
+    <div class="tech-item"><div class="tech-name">Sonner</div><div class="tech-desc">Toast notifications · Real-time</div></div>
+  </div>
+</section>
+
+<hr class="divider-accent">
+
+<!-- ===================== SECURITY ===================== -->
+<section class="page">
+  <div class="section-label">Security</div>
+  <h2>Security & Compliance</h2>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon emerald">🔒</div>
+      <h4>JWE Encryption</h4>
+      <p>All HFCX claim payloads encrypted with JSON Web Encryption. Patient data never transmitted in plaintext.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon sky">🛡</div>
+      <h4>FHIR R4 Compliance</h4>
+      <p>Standard-compliant FHIR R4 resources for Claim, CoverageEligibilityResponse, and PriorAuthorization.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon amber">📋</div>
+      <h4>Immutable Audit Trail</h4>
+      <p>Every HITL decision, agent action, and data change is logged with timestamp, actor, and rationale.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon violet">🏛</div>
+      <h4>Regulatory Alignment</h4>
+      <p>NHIA guidelines, FRA TPA regulations, EDA drug compliance, CBE financial reporting, MOHP standards.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon rose">🚫</div>
+      <h4>Prohibited Actions</h4>
+      <p>Agents cannot auto-accept coding, auto-write-off, auto-escalate to L5, or suppress fraud flags — ever.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon teal">🔐</div>
+      <h4>Role-Based Access</h4>
+      <p>5-level access matching escalation ladder. Medical Director actions require separate authentication.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider-accent">
+
+<!-- ===================== IMPLEMENTATION ROADMAP ===================== -->
+<section class="page">
+  <div class="section-label">Roadmap</div>
+  <h2>Implementation Roadmap</h2>
+
+  <div class="roadmap">
+    <div class="roadmap-phase current">
+      <h4>Phase 1 <span class="phase-badge p1">● Current</span></h4>
+      <p style="font-size:13px;color:var(--slate-600);margin:0.5rem 0;">Assistive Mode</p>
+      <ul>
+        <li>AI proposes, human approves all actions</li>
+        <li>Eligibility verification assist</li>
+        <li>Prior auth request drafting</li>
+        <li>Charge capture gap identification</li>
+        <li>Code suggestion with mandatory review</li>
+        <li>Denial prediction scoring</li>
+        <li>Appeal letter drafting</li>
+      </ul>
+    </div>
+    <div class="roadmap-phase">
+      <h4>Phase 2 <span class="phase-badge p2">Planned</span></h4>
+      <p style="font-size:13px;color:var(--slate-600);margin:0.5rem 0;">Conditional Automation</p>
+      <ul>
+        <li>Auto-accept for HIGH confidence eligibility</li>
+        <li>Auto-submit clean claims (readiness ≥95%)</li>
+        <li>Conditional auth submissions</li>
+        <li>Auto-post matched payments</li>
+        <li>Proactive denial prevention alerts</li>
+        <li>Predictive AR aging models</li>
+      </ul>
+    </div>
+    <div class="roadmap-phase">
+      <h4>Phase 3 <span class="phase-badge p3">Future</span></h4>
+      <p style="font-size:13px;color:var(--slate-600);margin:0.5rem 0;">Autonomous Mode</p>
+      <ul>
+        <li>Full auto-eligibility verification</li>
+        <li>Auto-claim submission pipeline</li>
+        <li>Self-healing claim corrections</li>
+        <li>Autonomous payment reconciliation</li>
+        <li>Predictive revenue forecasting</li>
+        <li>Coding ALWAYS remains human</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<hr class="divider-accent">
+
+<!-- ===================== ROI ===================== -->
+<section class="page">
+  <div class="section-label">ROI</div>
+  <h2>Projected Impact & ROI</h2>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="value">3–5%</div>
+      <div class="label">Revenue Recovery</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">40%</div>
+      <div class="label">Denial Reduction</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">60%</div>
+      <div class="label">Faster Resolution</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">12x</div>
+      <div class="label">ROI Year 1</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h4>Revenue Impact (Per Hospital)</h4>
+      <table class="kpi-table">
+        <thead><tr><th>Metric</th><th>Before</th><th>After</th><th>Impact</th></tr></thead>
+        <tbody>
+          <tr><td>Denial Rate</td><td>7–12%</td><td>≤4%</td><td class="on-target">EGP 1.2M saved</td></tr>
+          <tr><td>Charge Capture</td><td>93%</td><td>98%</td><td class="on-target">EGP 800K recovered</td></tr>
+          <tr><td>AR Days</td><td>55–70</td><td>≤40</td><td class="on-target">EGP 2.5M cash flow</td></tr>
+          <tr><td>Appeal Overturn</td><td>45%</td><td>64%+</td><td class="on-target">EGP 600K recovered</td></tr>
+          <tr><td>Underpayment Recovery</td><td>0%</td><td>85%</td><td class="on-target">EGP 400K recovered</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h4>Operational Efficiency</h4>
+      <table class="kpi-table">
+        <thead><tr><th>Metric</th><th>Before</th><th>After</th><th>Impact</th></tr></thead>
+        <tbody>
+          <tr><td>Eligibility Check Time</td><td>15 min</td><td>2 min</td><td class="on-target">87% faster</td></tr>
+          <tr><td>Prior Auth Turnaround</td><td>3–5 days</td><td>1–2 days</td><td class="on-target">60% faster</td></tr>
+          <tr><td>Claim Scrubbing</td><td>Manual</td><td>Real-time</td><td class="on-target">95% faster</td></tr>
+          <tr><td>Payment Reconciliation</td><td>2–3 days</td><td>4 hours</td><td class="on-target">90% faster</td></tr>
+          <tr><td>Denial Analysis</td><td>Weekly</td><td>Real-time</td><td class="on-target">Continuous</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="paper-footer">
+  <p><strong style="color:var(--emerald-400);">Veebase RCM Intelligence Platform</strong></p>
+  <p>Provider-Side Revenue Cycle Management · Egypt / HFCX Context</p>
+  <p style="margin-top:1rem;font-size:12px;">© 2026 Veebase. All rights reserved. Confidential.</p>
+  <p style="font-size:12px;">Document Version 1.0 · May 2026</p>
+</footer>
+
+</body>
+</html>

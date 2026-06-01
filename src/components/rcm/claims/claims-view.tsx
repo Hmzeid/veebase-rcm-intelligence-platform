@@ -1,11 +1,13 @@
 'use client';
 
 import { useRCMStore } from '@/lib/rcm-store';
-import { ClaimRecord, ClaimStatus, STATUS_COLORS, PIPELINE_STAGES } from '@/lib/rcm-types';
+import { AgentOutput, AppealStrategy, ClaimRecord, ClaimStatus, ConfidenceLevel, STATUS_COLORS, PIPELINE_STAGES } from '@/lib/rcm-types';
+import { CLAIM_AGENT_OUTPUTS, APPEAL_STRATEGIES } from '@/lib/rcm-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -34,9 +36,20 @@ import {
   Calendar,
   DollarSign,
   Tag,
+  Bot,
+  AlertTriangle,
+  GitBranch,
+  RotateCcw,
+  Target,
+  FileCheck,
+  Sparkles,
+  Zap,
+  TrendingUp,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { ClaimSubmitDialog } from './claim-submit-dialog';
 
 const statusLabels: Record<ClaimStatus, string> = {
@@ -52,6 +65,50 @@ const statusLabels: Record<ClaimStatus, string> = {
   PAID: 'Paid',
   CLOSED: 'Closed',
   WRITTEN_OFF: 'Written Off',
+};
+
+const agentDisplayNames: Record<string, string> = {
+  EligibilityBenefits: 'Eligibility & Benefits',
+  PriorAuthorization: 'Prior Authorization',
+  ChargeCapture: 'Charge Capture',
+  MedicalCoding: 'Medical Coding',
+  ClaimScrubSubmit: 'Claim Scrubbing & Submit',
+  DenialPrediction: 'Denial Prediction',
+  DenialManagement: 'Denial Management',
+  PaymentPosting: 'Payment Posting',
+  PatientBilling: 'Patient Billing',
+  FraudWasteAbuse: 'Fraud, Waste & Abuse',
+  PayerContractRules: 'Payer Contract & Rules',
+  AnalyticsReporting: 'Analytics & Reporting',
+};
+
+const confidenceColors: Record<ConfidenceLevel, string> = {
+  HIGH: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800',
+  MEDIUM: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
+  LOW: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-300 dark:border-red-800',
+  INSUFFICIENT_DATA: 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700',
+};
+
+const hitlGateColors: Record<string, string> = {
+  APPROVE: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300',
+  REVIEW: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300',
+  AUTO: 'bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950 dark:text-sky-300',
+};
+
+const strategyColors: Record<string, string> = {
+  A: 'border-sky-300 bg-sky-50 dark:bg-sky-950/30',
+  B: 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30',
+  C: 'border-amber-300 bg-amber-50 dark:bg-amber-950/30',
+  D: 'border-violet-300 bg-violet-50 dark:bg-violet-950/30',
+  E: 'border-rose-300 bg-rose-50 dark:bg-rose-950/30',
+};
+
+const strategyIcons: Record<string, React.ElementType> = {
+  A: FileCheck,
+  B: MessageSquare,
+  C: Shield,
+  D: GitBranch,
+  E: AlertTriangle,
 };
 
 export function ClaimsView() {
@@ -142,12 +199,14 @@ export function ClaimsView() {
         </CardContent>
       </Card>
 
-      {/* Claim detail dialog */}
-      <Dialog open={!!selectedClaim} onOpenChange={(open) => !open && setSelectedClaim(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          {selectedClaim && <ClaimDetail claim={selectedClaim} />}
-        </DialogContent>
-      </Dialog>
+      {/* Claim detail sheet */}
+      <Sheet open={!!selectedClaim} onOpenChange={(open) => !open && setSelectedClaim(null)}>
+        <SheetContent side="right" className="sm:max-w-2xl overflow-y-auto p-0">
+          <div className="p-6">
+            {selectedClaim && <ClaimDetail claim={selectedClaim} />}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -270,17 +329,28 @@ function ClaimRow({ claim, onClick }: { claim: ClaimRecord; onClick: () => void 
 function ClaimDetail({ claim }: { claim: ClaimRecord }) {
   const statusIdx = PIPELINE_STAGES.indexOf(claim.status as ClaimStatus);
 
+  // Get agent outputs for this claim
+  const agentOutputs = CLAIM_AGENT_OUTPUTS.filter(
+    (output) => output.claim_id === claim.id
+  ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  // Determine recommended appeal strategies for denied claims
+  const isDenied = claim.status === 'DENIED';
+  const recommendedStrategy = isDenied
+    ? agentOutputs.find((o) => o.agent === 'DenialManagement')?.output as Record<string, unknown> | undefined
+    : undefined;
+
   return (
     <div className="space-y-4">
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
+      <SheetHeader className="p-0">
+        <SheetTitle className="flex items-center gap-2">
           <FileText className="w-5 h-5" />
           {claim.claimNumber}
           <Badge variant="secondary" className={cn('text-xs', STATUS_COLORS[claim.status])}>
             {claim.status.replace('_', ' ')}
           </Badge>
-        </DialogTitle>
-      </DialogHeader>
+        </SheetTitle>
+      </SheetHeader>
 
       {/* Patient & Payer Info */}
       <div className="grid grid-cols-2 gap-4">
@@ -460,7 +530,586 @@ function ClaimDetail({ claim }: { claim: ClaimRecord }) {
           {claim.hitlGate}
         </Badge>
       </div>
+
+      {/* Processing Timeline */}
+      {agentOutputs.length > 0 && (
+        <ProcessingTimeline outputs={agentOutputs} claimAmount={claim.totalAmount} />
+      )}
+
+      {/* Appeal Strategy Panel (only for denied claims) */}
+      {isDenied && (
+        <AppealStrategyPanel
+          claim={claim}
+          recommendedStrategyKey={recommendedStrategy?.appealStrategy as string | undefined}
+        />
+      )}
     </div>
+  );
+}
+
+// ========== Processing Timeline Component ==========
+function ProcessingTimeline({ outputs, claimAmount }: { outputs: AgentOutput[]; claimAmount: number }) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
+        <p className="text-xs font-semibold text-muted-foreground">Processing Timeline</p>
+        <Badge variant="outline" className="text-[9px] h-4 border-sky-300 text-sky-700 bg-sky-50 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800">
+          {outputs.length} agent outputs
+        </Badge>
+      </div>
+
+      <div className="relative">
+        {/* Vertical line */}
+        <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-border" />
+
+        <div className="space-y-0">
+          {outputs.map((output, idx) => (
+            <TimelineEntry
+              key={`${output.agent}-${output.timestamp}`}
+              output={output}
+              isLast={idx === outputs.length - 1}
+              claimAmount={claimAmount}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TimelineEntry({ output, isLast, claimAmount }: { output: AgentOutput; isLast: boolean; claimAmount: number }) {
+  const displayName = agentDisplayNames[output.agent] || output.agent;
+  const hasEscalation = output.escalation_required;
+  const isFraudFlag = output.tags.includes('FRAUD_SENTINEL') || output.tags.includes('PHANTOM_BILLING');
+
+  return (
+    <div className={cn('relative flex gap-3', !isLast && 'pb-3')}>
+      {/* Timeline dot */}
+      <div className="relative z-10 flex-shrink-0 mt-1">
+        <div
+          className={cn(
+            'w-[22px] h-[22px] rounded-full flex items-center justify-center border-2',
+            hasEscalation
+              ? 'bg-red-100 border-red-400 dark:bg-red-950 dark:border-red-600'
+              : isFraudFlag
+              ? 'bg-rose-100 border-rose-400 dark:bg-rose-950 dark:border-rose-600'
+              : 'bg-emerald-100 border-emerald-400 dark:bg-emerald-950 dark:border-emerald-600'
+          )}
+        >
+          {hasEscalation ? (
+            <AlertTriangle className="w-2.5 h-2.5 text-red-600 dark:text-red-400" />
+          ) : isFraudFlag ? (
+            <AlertTriangle className="w-2.5 h-2.5 text-rose-600 dark:text-rose-400" />
+          ) : (
+            <Bot className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className={cn(
+        'flex-1 p-3 rounded-lg border text-xs',
+        hasEscalation
+          ? 'border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/30'
+          : isFraudFlag
+          ? 'border-rose-200 bg-rose-50/50 dark:border-rose-900 dark:bg-rose-950/30'
+          : 'border-border bg-card'
+      )}>
+        {/* Header row */}
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-xs">{displayName}</span>
+            <Badge
+              variant="outline"
+              className={cn('text-[9px] h-4 px-1.5', confidenceColors[output.confidence])}
+            >
+              {output.confidence}
+            </Badge>
+            <Badge
+              variant="outline"
+              className={cn('text-[9px] h-4 px-1.5', hitlGateColors[output.hitl_gate])}
+            >
+              {output.hitl_gate === 'APPROVE' ? 'HITL: Approve' :
+               output.hitl_gate === 'REVIEW' ? 'HITL: Review' : 'HITL: Auto'}
+            </Badge>
+          </div>
+          <span className="text-[10px] text-muted-foreground flex-shrink-0">
+            {format(new Date(output.timestamp), 'MMM d, HH:mm')}
+          </span>
+        </div>
+
+        {/* Output summary */}
+        <OutputSummary output={output} claimAmount={claimAmount} />
+
+        {/* Rationale */}
+        <div className="mt-2 p-2 rounded bg-muted/50 dark:bg-muted/20">
+          <div className="flex items-start gap-1.5">
+            <Sparkles className="w-3 h-3 text-amber-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground mb-0.5">Rationale</p>
+              <p className="text-[11px] leading-relaxed">{output.rationale}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Recommended action */}
+        <div className="mt-1.5 flex items-start gap-1.5">
+          <Target className="w-3 h-3 text-emerald-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <span className="text-[10px] font-medium text-muted-foreground">Recommended: </span>
+            <span className="text-[11px]">{output.recommended_action}</span>
+          </div>
+        </div>
+
+        {/* Escalation notice */}
+        {hasEscalation && output.escalation_reason && (
+          <div className="mt-2 flex items-start gap-1.5 p-2 rounded bg-red-100/60 dark:bg-red-950/40 border border-red-200 dark:border-red-900">
+            <AlertTriangle className="w-3 h-3 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+            <p className="text-[11px] text-red-800 dark:text-red-300 font-medium">{output.escalation_reason}</p>
+          </div>
+        )}
+
+        {/* Tags */}
+        {output.tags.length > 0 && (
+          <div className="mt-2 flex items-center gap-1 flex-wrap">
+            {output.tags.map((tag) => (
+              <Badge
+                key={tag}
+                variant="outline"
+                className={cn(
+                  'text-[8px] h-3.5 px-1',
+                  tag === 'COMPLIANCE_FLAG' && 'border-rose-300 text-rose-700 bg-rose-50 dark:bg-rose-950 dark:text-rose-300',
+                  tag === 'FRAUD_SENTINEL' && 'border-rose-300 text-rose-700 bg-rose-50 dark:bg-rose-950 dark:text-rose-300',
+                  tag === 'PHANTOM_BILLING' && 'border-rose-300 text-rose-700 bg-rose-50 dark:bg-rose-950 dark:text-rose-300',
+                  tag === 'UPCODING_REVIEW' && 'border-orange-300 text-orange-700 bg-orange-50 dark:bg-orange-950 dark:text-orange-300',
+                  tag === 'HIGH_VALUE_REVIEW' && 'border-orange-300 text-orange-700 bg-orange-50 dark:bg-orange-950 dark:text-orange-300',
+                  tag === 'URGENT_AUTH' && 'border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950 dark:text-amber-300',
+                  tag === 'TIMELY_FILING_RISK' && 'border-red-300 text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-300',
+                  tag === 'APPEAL_DEADLINE_RISK' && 'border-red-300 text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-300',
+                  tag === 'UNDERPAYMENT' && 'border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950 dark:text-amber-300',
+                  tag === 'HFCX_SUBMIT' && 'border-teal-300 text-teal-700 bg-teal-50 dark:bg-teal-950 dark:text-teal-300',
+                  tag === 'CLEAN_CLAIM' && 'border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300',
+                  tag === 'LOW_RISK' && 'border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300',
+                )}
+              >
+                {tag.replace(/_/g, ' ')}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OutputSummary({ output, claimAmount }: { output: AgentOutput; claimAmount: number }) {
+  const out = output.output;
+
+  // Render key output fields based on agent type
+  if (output.agent === 'EligibilityBenefits') {
+    return (
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-[10px] text-muted-foreground">Coverage</p>
+          <p className="text-xs font-semibold text-emerald-600">{out.coverageVerified ? 'Verified' : 'Failed'}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Copay</p>
+          <p className="text-xs font-semibold">EGP {(out.copayAmount as number)?.toLocaleString?.() ?? '—'}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Benefits Left</p>
+          <p className="text-xs font-semibold">EGP {(out.benefitsRemaining as number)?.toLocaleString?.() ?? '—'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (output.agent === 'PriorAuthorization') {
+    const authStatus = out.authStatus as string;
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <p className="text-[10px] text-muted-foreground">Auth Status</p>
+          <Badge
+            variant="outline"
+            className={cn(
+              'text-[9px] h-4',
+              authStatus === 'APPROVED' && 'border-emerald-300 text-emerald-700',
+              authStatus === 'DENIED' && 'border-red-300 text-red-700',
+              authStatus === 'PENDING' && 'border-amber-300 text-amber-700',
+              authStatus === 'NOT_REQUIRED' && 'border-sky-300 text-sky-700',
+            )}
+          >
+            {authStatus?.replace('_', ' ') ?? 'N/A'}
+          </Badge>
+        </div>
+        {out.authNumber && (
+          <div>
+            <p className="text-[10px] text-muted-foreground">Auth #</p>
+            <p className="text-xs font-mono font-semibold">{out.authNumber as string}</p>
+          </div>
+        )}
+        {out.denialCode && (
+          <div>
+            <p className="text-[10px] text-muted-foreground">Denial Code</p>
+            <p className="text-xs font-semibold text-red-600">{out.denialCode as string}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (output.agent === 'ChargeCapture') {
+    return (
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-[10px] text-muted-foreground">Charges</p>
+          <p className="text-xs font-semibold">{out.chargesCaptured as number}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Captured</p>
+          <p className="text-xs font-semibold">EGP {(out.totalCaptured as number)?.toLocaleString?.()}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Missing</p>
+          <p className={cn('text-xs font-semibold', (out.missingCharges as number) > 0 ? 'text-red-600' : 'text-emerald-600')}>
+            {out.missingCharges as number}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (output.agent === 'MedicalCoding') {
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <p className="text-[10px] text-muted-foreground">ICD-10</p>
+          <p className="text-xs font-mono font-semibold">{(out.icd10Codes as string[])?.join(', ') ?? '—'}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">CPT</p>
+          <p className="text-xs font-mono font-semibold">{(out.cptCodes as string[])?.join(', ') ?? '—'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (output.agent === 'ClaimScrubSubmit') {
+    return (
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-[10px] text-muted-foreground">Readiness</p>
+          <p className="text-xs font-semibold text-emerald-600">{out.readinessScore as number}%</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Scrub</p>
+          <Badge
+            variant="outline"
+            className={cn(
+              'text-[9px] h-4',
+              (out.scrubResult as string) === 'PASS'
+                ? 'border-emerald-300 text-emerald-700 bg-emerald-50'
+                : 'border-red-300 text-red-700 bg-red-50'
+            )}
+          >
+            {out.scrubResult as string}
+          </Badge>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Method</p>
+          <p className="text-xs font-semibold">{out.submissionMethod as string}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (output.agent === 'DenialPrediction') {
+    const prob = out.denialProbability as number;
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <p className="text-[10px] text-muted-foreground">Denial Probability</p>
+          <div className="flex items-center gap-2">
+            <Progress
+              value={prob}
+              className={cn(
+                'h-1.5 flex-1',
+                prob >= 60 ? '[&>div]:bg-red-500' :
+                prob >= 30 ? '[&>div]:bg-amber-500' :
+                '[&>div]:bg-emerald-500'
+              )}
+            />
+            <span className="text-xs font-bold">{prob}%</span>
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Risk Factors</p>
+          <p className="text-xs font-semibold">{(out.riskFactors as string[])?.length ?? 0} factors</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (output.agent === 'DenialManagement') {
+    return (
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-[10px] text-muted-foreground">Classification</p>
+          <p className="text-xs font-semibold">{(out.denialClassification as string)?.replace(/_/g, ' ') ?? '—'}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Strategy</p>
+          <Badge variant="outline" className="text-[9px] h-4 border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300">
+            Strategy {out.appealStrategy as string}
+          </Badge>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Recovery Est.</p>
+          <p className="text-xs font-semibold text-emerald-600">{Math.round((out.estimatedRecovery as number) * 100)}%</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (output.agent === 'PaymentPosting') {
+    return (
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-[10px] text-muted-foreground">Posted</p>
+          <p className="text-xs font-semibold">EGP {(out.postedAmount as number)?.toLocaleString?.()}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Contracted</p>
+          <p className="text-xs font-semibold">EGP {(out.contractedAmount as number)?.toLocaleString?.()}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Variance</p>
+          <p className={cn(
+            'text-xs font-semibold',
+            (out.variance as number) < 0 ? 'text-red-600' : 'text-emerald-600'
+          )}>
+            EGP {(out.variance as number)?.toLocaleString?.()}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (output.agent === 'FraudWasteAbuse') {
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <p className="text-[10px] text-muted-foreground">Pattern</p>
+          <p className="text-xs font-semibold text-red-600">{(out.pattern as string)?.replace(/_/g, ' ') ?? 'N/A'}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground">Severity</p>
+          <Badge
+            variant="outline"
+            className={cn(
+              'text-[9px] h-4',
+              (out.severity as string) === 'CRITICAL' && 'border-rose-300 text-rose-700 bg-rose-50',
+              (out.severity as string) === 'HIGH' && 'border-red-300 text-red-700 bg-red-50',
+              (out.severity as string) === 'MEDIUM' && 'border-amber-300 text-amber-700 bg-amber-50',
+            )}
+          >
+            {out.severity as string}
+          </Badge>
+        </div>
+      </div>
+    );
+  }
+
+  // Default: show output keys
+  return (
+    <div className="text-[10px] text-muted-foreground">
+      {Object.keys(out).slice(0, 4).map((key) => (
+        <span key={key} className="mr-3">
+          <span className="font-medium">{key}:</span> {String(out[key])}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// ========== Appeal Strategy Panel ==========
+function AppealStrategyPanel({ claim, recommendedStrategyKey }: { claim: ClaimRecord; recommendedStrategyKey?: string }) {
+  // Determine which strategies are most relevant based on denial info
+  const getRecommendedStrategies = () => {
+    if (recommendedStrategyKey) {
+      return APPEAL_STRATEGIES.map((s) => ({
+        ...s,
+        isRecommended: s.strategyKey === recommendedStrategyKey,
+      }));
+    }
+    // Default: recommend based on tags
+    const hasAuthIssue = claim.tags.includes('URGENT_AUTH');
+    const defaultKey = hasAuthIssue ? 'B' : 'A';
+    return APPEAL_STRATEGIES.map((s) => ({
+      ...s,
+      isRecommended: s.strategyKey === defaultKey,
+    }));
+  };
+
+  const strategies = getRecommendedStrategies();
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <RotateCcw className="w-3.5 h-3.5 text-red-500" />
+        <p className="text-xs font-semibold text-muted-foreground">Appeal Strategies</p>
+        <Badge variant="outline" className="text-[9px] h-4 border-red-300 text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-300 dark:border-red-800">
+          Denied Claim
+        </Badge>
+      </div>
+
+      <div className="space-y-2">
+        {strategies.map((strategy) => (
+          <AppealStrategyCard
+            key={strategy.id}
+            strategy={strategy}
+            claimAmount={claim.totalAmount}
+            isRecommended={strategy.isRecommended}
+          />
+        ))}
+      </div>
+
+      {/* Appeal deadline warning */}
+      {claim.appealDeadline && (
+        <div className="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900">
+          <Clock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+          <div>
+            <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+              Appeal Deadline: {format(new Date(claim.appealDeadline), 'MMM d, yyyy')}
+            </p>
+            <p className="text-[10px] text-amber-700 dark:text-amber-400">
+              File appeal before this date to preserve recovery rights.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AppealStrategyCard({
+  strategy,
+  claimAmount,
+  isRecommended,
+}: {
+  strategy: AppealStrategy & { isRecommended: boolean };
+  claimAmount: number;
+  isRecommended: boolean;
+}) {
+  const Icon = strategyIcons[strategy.strategyKey] || FileCheck;
+  const estimatedRecovery = Math.round(claimAmount * strategy.estimatedRecoveryPct / 100);
+
+  return (
+    <Card
+      className={cn(
+        'border transition-all',
+        strategyColors[strategy.strategyKey],
+        isRecommended && 'ring-2 ring-emerald-400 dark:ring-emerald-600'
+      )}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-2 flex-1">
+            <div className={cn(
+              'w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5',
+              strategy.strategyKey === 'A' && 'bg-sky-100 dark:bg-sky-950',
+              strategy.strategyKey === 'B' && 'bg-emerald-100 dark:bg-emerald-950',
+              strategy.strategyKey === 'C' && 'bg-amber-100 dark:bg-amber-950',
+              strategy.strategyKey === 'D' && 'bg-violet-100 dark:bg-violet-950',
+              strategy.strategyKey === 'E' && 'bg-rose-100 dark:bg-rose-950',
+            )}>
+              <Icon className={cn(
+                'w-3.5 h-3.5',
+                strategy.strategyKey === 'A' && 'text-sky-600 dark:text-sky-400',
+                strategy.strategyKey === 'B' && 'text-emerald-600 dark:text-emerald-400',
+                strategy.strategyKey === 'C' && 'text-amber-600 dark:text-amber-400',
+                strategy.strategyKey === 'D' && 'text-violet-600 dark:text-violet-400',
+                strategy.strategyKey === 'E' && 'text-rose-600 dark:text-rose-400',
+              )} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold">
+                  Strategy {strategy.strategyKey}: {strategy.name}
+                </span>
+                {isRecommended && (
+                  <Badge className="text-[8px] h-3.5 px-1 bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900 dark:text-emerald-300 dark:border-emerald-700">
+                    RECOMMENDED
+                  </Badge>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
+                {strategy.description}
+              </p>
+
+              {/* Metrics row */}
+              <div className="flex items-center gap-3 mt-2">
+                <div className="flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3 text-emerald-500" />
+                  <span className="text-[10px] text-muted-foreground">Success:</span>
+                  <span className={cn(
+                    'text-[10px] font-bold',
+                    strategy.successProbability >= 60 ? 'text-emerald-600' :
+                    strategy.successProbability >= 40 ? 'text-amber-600' :
+                    'text-red-600'
+                  )}>
+                    {strategy.successProbability}%
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <DollarSign className="w-3 h-3 text-amber-500" />
+                  <span className="text-[10px] text-muted-foreground">Recovery:</span>
+                  <span className="text-[10px] font-bold">EGP {estimatedRecovery.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-sky-500" />
+                  <span className="text-[10px] text-muted-foreground">~{strategy.estimatedDays}d</span>
+                </div>
+              </div>
+
+              {/* Required documents */}
+              <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                <FileCheck className="w-2.5 h-2.5 text-muted-foreground" />
+                {strategy.requiredDocuments.slice(0, 2).map((doc) => (
+                  <Badge key={doc} variant="outline" className="text-[8px] h-3 px-1">
+                    {doc.length > 25 ? doc.slice(0, 25) + '...' : doc}
+                  </Badge>
+                ))}
+                {strategy.requiredDocuments.length > 2 && (
+                  <span className="text-[8px] text-muted-foreground">+{strategy.requiredDocuments.length - 2} more</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Draft Appeal button */}
+          <Button
+            size="sm"
+            variant={isRecommended ? 'default' : 'outline'}
+            className={cn(
+              'text-[10px] h-7 px-2.5 flex-shrink-0',
+              isRecommended && 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            )}
+            onClick={() => {
+              toast.success(`Appeal draft initiated for Strategy ${strategy.strategyKey}: ${strategy.name}`, {
+                description: `Estimated recovery: EGP ${estimatedRecovery.toLocaleString()} (${strategy.successProbability}% success rate)`,
+              });
+            }}
+          >
+            <Zap className="w-3 h-3 mr-1" />
+            Draft Appeal
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

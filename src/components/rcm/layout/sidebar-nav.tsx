@@ -13,6 +13,8 @@ import {
   Shield,
   BookOpen,
   ClipboardList,
+  ShieldAlert,
+  CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -102,6 +104,32 @@ export function SidebarNav() {
           );
         })}
       </nav>
+
+      {/* Prohibited Actions Guard */}
+      <div className="mx-3 mb-2">
+        <div className="p-3 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/30">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldAlert className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">Prohibited Actions Guard</span>
+            <Badge className="text-[8px] h-3.5 px-1 bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900 dark:text-emerald-300 dark:border-emerald-700">
+              ACTIVE
+            </Badge>
+          </div>
+          <div className="space-y-1">
+            {[
+              'No Auto-Accept Coding',
+              'No Auto-Write-Off',
+              'No Auto-Escalate to L5',
+              'No Suppress Fraud Flags',
+            ].map((rule) => (
+              <div key={rule} className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                <span className="text-[9px] text-emerald-700 dark:text-emerald-400 leading-tight">{rule}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Footer */}
       <div className="px-6 py-4 border-t">

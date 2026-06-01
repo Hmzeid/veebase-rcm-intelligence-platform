@@ -44,6 +44,7 @@ interface RCMStore {
   setSelectedEscalation: (esc: EscalationRecord | null) => void;
 
   // Actions
+  addClaim: (claim: ClaimRecord) => void;
   acknowledgeEscalation: (id: string) => void;
   resolveEscalation: (id: string) => void;
   addAuditEntry: (entry: AuditEntry) => void;
@@ -79,6 +80,11 @@ export const useRCMStore = create<RCMStore>((set) => ({
   setSelectedEscalation: (esc) => set({ selectedEscalation: esc }),
 
   // Actions
+  addClaim: (claim) =>
+    set((state) => ({
+      claims: [claim, ...state.claims],
+    })),
+
   acknowledgeEscalation: (id) =>
     set((state) => {
       const escalation = state.escalations.find((e) => e.id === id);
