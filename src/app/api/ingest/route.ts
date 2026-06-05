@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { aiVision } from '@/lib/ai';
 
 // POST - Upload and process a PDF claim
 export async function POST(request: NextRequest) {
@@ -20,24 +21,13 @@ export async function POST(request: NextRequest) {
     const base64 = Buffer.from(bytes).toString('base64');
     const pdfDataUrl = `data:application/pdf;base64,${base64}`;
 
-    // Try VLM extraction
+    // Try VLM extraction via the pluggable AI layer (z.ai / OpenAI / Anthropic / local).
     try {
-      // The z-ai SDK's vision body type is incomplete; cast the client to call createVision.
-      const ZAI = (await import('z-ai-web-dev-sdk')).default;
-      const zai = (await ZAI.create()) as unknown as { chat: { completions: { createVision: (b: unknown) => Promise<{ choices?: { message?: { content?: string } }[] }> } } };
-
       const templateInfo =
         template !== 'auto' ? `The document is from the "${template}" hospital system. ` : '';
 
-      const response = await zai.chat.completions.createVision({
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `You are a medical claims data extraction specialist working for the Egyptian National Health Insurance system. ${templateInfo}
-                
+      const prompt = `You are a medical claims data extraction specialist working for the Egyptian National Health Insurance system. ${templateInfo}
+
 Extract all claim data from this document and return it as a JSON object with these fields:
 {
   "patientName": "string - patient full name",
@@ -69,19 +59,10 @@ Rules:
 - Rate your confidence (0-100) for each extracted field
 - Look for both Arabic and English labels
 - Common Arabic terms: مريض (patient), تاريخ (date), مبلغ (amount), رقم قومي (national ID)
-- Return ONLY the JSON object, no additional text`,
-              },
-              {
-                type: 'file_url',
-                file_url: { url: pdfDataUrl },
-              },
-            ],
-          },
-        ],
-        thinking: { type: 'disabled' },
-      });
+- Return ONLY the JSON object, no additional text`;
 
-      const content = response.choices?.[0]?.message?.content;
+      const result = await aiVision(prompt, pdfDataUrl);
+      const content = result?.text;
       if (content) {
         // Try to parse the JSON from the response
         const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -97,6 +78,8 @@ Rules:
             extractedData,
             confidence: Math.round(avgConfidence),
             method: 'vlm',
+            provider: result?.provider,
+            model: result?.model,
           });
         }
       }

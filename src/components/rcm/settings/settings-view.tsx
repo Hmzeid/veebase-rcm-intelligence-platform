@@ -38,6 +38,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { AIModelsCard } from './ai-models-card';
 
 const PAYER_CONFIG = [
   { name: 'NHIA', mix: '45%', filingDays: 30, color: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800' },
@@ -252,6 +253,9 @@ export function SettingsView() {
             </div>
           </CardContent>
         </Card>
+
+        {/* 1b. AI Models Card */}
+        <AIModelsCard />
 
         {/* 2. HITL Gate Rules Card */}
         <Card>

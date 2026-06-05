@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { aiChat } from '@/lib/ai';
 
 // Fallback knowledge base for when LLM SDK is unavailable
 const FALLBACK_RESPONSES: Record<string, { content: string; tags: string[] }> = {
@@ -64,14 +65,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Try to use LLM SDK for intelligent responses
+    // Route through the pluggable AI layer (z.ai / OpenAI / Anthropic / local),
+    // with automatic failover to the deterministic knowledge base below.
     try {
-      // The z-ai SDK ships incomplete types; cast to access the LLM export.
-      const sdk = (await import('z-ai-web-dev-sdk')) as unknown as { LLM?: new () => { chat?: unknown }; default?: { LLM?: new () => { chat?: unknown } } };
-      const LLMClass = sdk.LLM || sdk.default?.LLM;
-      if (!LLMClass) throw new Error('LLM not available in SDK');
-      const llm = new LLMClass() as { chat: (b: unknown) => Promise<{ choices?: { message?: { content?: string } }[]; content?: string }> };
-
       const systemPrompt = `You are the AI Orchestrator Assistant of the Veebase RCM Intelligence Platform — a provider-side, multi-agent Revenue Cycle Management system deployed for Egyptian hospitals and clinics.
 
 Your operating context:
@@ -117,34 +113,29 @@ Rules:
 - Financial thresholds: claims above EGP 50,000 require senior biller review
 - Timely filing: NHIA 30 days, private TPAs 60 days`;
 
-      const response = await llm.chat({
-        messages: [
+      const result = await aiChat(
+        [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message },
         ],
-        temperature: 0.3,
-        max_tokens: 1024,
-      });
+        { temperature: 0.3, maxTokens: 1024 },
+      );
 
-      const content =
-        response.choices?.[0]?.message?.content ||
-        response.content ||
-        null;
-
-      if (content) {
+      if (result?.text) {
         return NextResponse.json({
-          content,
+          content: result.text,
           agent: 'Orchestrator',
           confidence: 'MEDIUM',
           tags: [],
+          provider: result.provider,
+          model: result.model,
         });
       }
 
-      // LLM returned empty content — use fallback
-      throw new Error('LLM returned empty response');
+      // All AI providers unavailable — use the deterministic fallback.
+      throw new Error('No AI provider available');
     } catch (llmError) {
-      // LLM SDK failed or returned empty — return structured fallback
-      console.warn('Chat LLM unavailable, using fallback:', llmError instanceof Error ? llmError.message : 'Unknown error');
+      console.warn('Chat AI unavailable, using fallback:', llmError instanceof Error ? llmError.message : 'Unknown error');
       const fallback = getFallbackResponse(message);
       return NextResponse.json(fallback);
     }

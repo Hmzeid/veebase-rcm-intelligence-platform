@@ -156,6 +156,13 @@ model Webhook {
   deliveries  WebhookDelivery[]
 }
 
+/// Key/value application settings (e.g. the runtime-selected AI provider).
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 /// Idempotency keys so external systems can safely retry create requests.
 model IdempotencyKey {
   id        String   @id @default(cuid())
