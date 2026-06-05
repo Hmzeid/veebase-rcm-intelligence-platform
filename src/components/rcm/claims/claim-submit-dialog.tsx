@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRCMStore } from '@/lib/rcm-store';
+import { apiCreateClaim } from '@/lib/rcm-sync';
 import { ClaimRecord, PayerType } from '@/lib/rcm-types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,7 +59,7 @@ interface FormErrors {
 }
 
 export function ClaimSubmitDialog() {
-  const { claims, addClaim } = useRCMStore();
+  const { claims, addClaim, upsertClaim } = useRCMStore();
   const [open, setOpen] = useState(false);
 
   // Form state
@@ -177,12 +178,30 @@ export function ClaimSubmitDialog() {
       updatedAt: now,
     };
 
+    // Optimistic insert, then persist to the database via the API so the
+    // claim survives reloads and is visible to external integrations.
     addClaim(newClaim);
     toast.success('Claim submitted successfully', {
       description: `${claimNumber} — ${patientName.trim()} (EGP ${amount.toLocaleString()})`,
     });
     resetForm();
     setOpen(false);
+
+    void apiCreateClaim({
+      patientName: newClaim.patientName,
+      nationalId: newClaim.nationalId,
+      payerId: newClaim.payerId,
+      payerName: newClaim.payerName,
+      payerType: newClaim.payerType,
+      serviceDate: newClaim.serviceDate,
+      totalAmount: newClaim.totalAmount,
+      priorAuthRequired: newClaim.priorAuthRequired,
+      priorAuthNumber: newClaim.priorAuthNumber,
+      tags: newClaim.tags,
+      source: 'ui',
+    }).then((saved) => {
+      if (saved?.id) upsertClaim(saved);
+    });
   }
 
   return (

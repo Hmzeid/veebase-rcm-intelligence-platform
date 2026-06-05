@@ -109,6 +109,7 @@ export const ar = {
     priorAuth: 'التصريح المسبق',
     hitlGate: 'بوابة التدخل البشري',
     processingTimeline: 'الجدول الزمني للمعالجة',
+    runAgents: 'تشغيل الوكلاء',
     appealStrategies: 'استراتيجيات الاستئناف',
     deniedClaim: 'مطالبة مرفوضة',
     draftAppeal: 'صياغة استئناف',

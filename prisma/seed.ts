@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { AGENTS, CLAIMS, ESCALATIONS, KPIS } from '../src/lib/rcm-data';
+import { AGENTS, CLAIMS, ESCALATIONS, KPIS, AUDIT_ENTRIES } from '../src/lib/rcm-data';
 
 const prisma = new PrismaClient();
 
@@ -16,6 +16,13 @@ async function main() {
   console.log('  ✓ Claims cleared');
   await prisma.agentStatus.deleteMany({});
   console.log('  ✓ Agent Statuses cleared');
+  await prisma.auditLog.deleteMany({});
+  console.log('  ✓ Audit logs cleared');
+  await prisma.claimEvent.deleteMany({});
+  await prisma.webhookDelivery.deleteMany({});
+  await prisma.webhook.deleteMany({});
+  await prisma.apiKey.deleteMany({});
+  console.log('  ✓ Processing events, webhooks & API keys cleared');
 
   // Seed Agents
   console.log('\n📋 Seeding agents...');
@@ -114,6 +121,29 @@ async function main() {
     });
   }
   console.log(`  ✓ ${KPIS.length} KPI records seeded`);
+
+  // Seed audit trail
+  console.log('\n📜 Seeding audit trail...');
+  for (const a of AUDIT_ENTRIES) {
+    await prisma.auditLog.create({
+      data: {
+        id: a.id,
+        timestamp: new Date(a.timestamp),
+        action: a.action,
+        actor: a.actor,
+        actorRole: a.actorRole,
+        claimNumber: a.claimNumber ?? null,
+        agentName: a.agentName ?? null,
+        details: a.details,
+        previousValue: a.previousValue ?? null,
+        newValue: a.newValue ?? null,
+        riskLevel: a.riskLevel,
+        tags: JSON.stringify(a.tags ?? []),
+        source: 'ui',
+      },
+    });
+  }
+  console.log(`  ✓ ${AUDIT_ENTRIES.length} audit entries seeded`);
 
   console.log('\n✅ Database seeding complete!\n');
 

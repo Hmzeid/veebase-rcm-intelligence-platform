@@ -109,6 +109,7 @@ export const en = {
     priorAuth: 'Prior Authorization',
     hitlGate: 'HITL Gate',
     processingTimeline: 'Processing Timeline',
+    runAgents: 'Run Agents',
     appealStrategies: 'Appeal Strategies',
     deniedClaim: 'Denied Claim',
     draftAppeal: 'Draft Appeal',

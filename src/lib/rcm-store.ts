@@ -61,6 +61,16 @@ interface RCMStore {
   notifications: NotificationPreferences;
   setNotifications: (prefs: NotificationPreferences) => void;
 
+  // Hydration / bulk setters (used to sync from the API)
+  hydrated: boolean;
+  setHydrated: (v: boolean) => void;
+  setClaims: (claims: ClaimRecord[]) => void;
+  setEscalations: (escalations: EscalationRecord[]) => void;
+  setAgents: (agents: AgentRecord[]) => void;
+  setKpis: (kpis: KPIRecord[]) => void;
+  setAuditEntries: (entries: AuditEntry[]) => void;
+  upsertClaim: (claim: ClaimRecord) => void;
+
   // Actions
   addClaim: (claim: ClaimRecord) => void;
   acknowledgeEscalation: (id: string) => void;
@@ -78,6 +88,23 @@ export const useRCMStore = create<RCMStore>((set) => ({
   // Navigation
   activeView: 'dashboard',
   setActiveView: (view) => set({ activeView: view }),
+
+  // Hydration / bulk setters
+  hydrated: false,
+  setHydrated: (v) => set({ hydrated: v }),
+  setClaims: (claims) => set({ claims }),
+  setEscalations: (escalations) => set({ escalations }),
+  setAgents: (agents) => set({ agents }),
+  setKpis: (kpis) => set({ kpis }),
+  setAuditEntries: (entries) => set({ auditEntries: entries }),
+  upsertClaim: (claim) =>
+    set((state) => {
+      const idx = state.claims.findIndex((c) => c.id === claim.id);
+      if (idx === -1) return { claims: [claim, ...state.claims] };
+      const next = [...state.claims];
+      next[idx] = claim;
+      return { claims: next };
+    }),
 
   // Data
   agents: AGENTS,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useRCMStore } from '@/lib/rcm-store';
+import { useHydrateStore } from '@/lib/rcm-sync';
 import { I18nProvider, useI18n } from '@/lib/i18n';
 import { SidebarNav, MobileNav } from '@/components/rcm/layout/sidebar-nav';
 import { Header } from '@/components/rcm/layout/header';
@@ -34,6 +35,7 @@ const viewMap: Record<string, React.ComponentType> = {
 function AppContent() {
   const { activeView } = useRCMStore();
   const { dir } = useI18n();
+  useHydrateStore();
   const ActiveView = viewMap[activeView] ?? DashboardView;
 
   return (

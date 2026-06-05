@@ -1,6 +1,7 @@
 'use client';
 
 import { useRCMStore } from '@/lib/rcm-store';
+import { apiUpdateEscalation } from '@/lib/rcm-sync';
 import { useI18n } from '@/lib/i18n';
 import { EscalationRecord, ESCALATION_LEVEL_LABELS, ESCALATION_LEVEL_COLORS } from '@/lib/rcm-types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -142,8 +143,8 @@ export function EscalationsView() {
           <EscalationCard
             key={escalation.id}
             escalation={escalation}
-            onAcknowledge={() => acknowledgeEscalation(escalation.id)}
-            onResolve={() => resolveEscalation(escalation.id)}
+            onAcknowledge={() => { acknowledgeEscalation(escalation.id); void apiUpdateEscalation(escalation.id, 'acknowledge'); }}
+            onResolve={() => { resolveEscalation(escalation.id); void apiUpdateEscalation(escalation.id, 'resolve'); }}
           />
         ))
         )}
@@ -161,6 +162,7 @@ function EscalationCard({
   onAcknowledge: () => void;
   onResolve: () => void;
 }) {
+  const { t } = useI18n();
   const levelColor = ESCALATION_LEVEL_COLORS[escalation.level];
   const isPending = escalation.status === 'PENDING';
   const isAcknowledged = escalation.status === 'ACKNOWLEDGED';

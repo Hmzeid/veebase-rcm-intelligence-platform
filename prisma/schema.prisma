@@ -82,3 +82,94 @@ model KPIRecord {
   trend       String   @default("STABLE") // IMPROVING | STABLE | DEGRADING
   recordedAt  DateTime @default(now())
 }
+
+// ────────────────────────────────────────────────────────────────────
+//  Audit, processing, and integration models (production layer)
+// ────────────────────────────────────────────────────────────────────
+
+/// Immutable compliance audit trail — every state change is recorded here.
+model AuditLog {
+  id            String   @id @default(cuid())
+  timestamp     DateTime @default(now())
+  action        String   // HITL_APPROVE | HITL_REJECT | ESCALATE | RESOLVE | SUBMIT_CLAIM | APPEAL_FILED | PAYMENT_DISPUTE | PHASE_CHANGE | AGENT_OVERRIDE | CLAIM_CREATED | STATUS_CHANGE | AGENT_RUN
+  actor         String
+  actorRole     String   @default("System")
+  claimId       String?
+  claimNumber   String?
+  agentName     String?
+  details       String
+  previousValue String?
+  newValue      String?
+  riskLevel     String   @default("LOW") // LOW | MEDIUM | HIGH | CRITICAL
+  tags          String   @default("[]")  // JSON array
+  source        String   @default("ui")  // ui | api | engine | webhook
+
+  @@index([claimId])
+  @@index([action])
+  @@index([timestamp])
+}
+
+/// Per-agent processing output recorded when an agent runs on a claim.
+model ClaimEvent {
+  id                 String   @id @default(cuid())
+  claimId            String
+  claimNumber        String
+  agentName          String
+  phase              Int      @default(1)
+  fromStatus         String?
+  toStatus           String?
+  confidence         String   @default("HIGH") // HIGH | MEDIUM | LOW | INSUFFICIENT_DATA
+  rationale          String
+  recommendedAction  String
+  hitlGate           String   @default("AUTO") // APPROVE | REVIEW | AUTO
+  escalationRequired Boolean  @default(false)
+  output             String   @default("{}") // JSON payload
+  tags               String   @default("[]") // JSON array
+  createdAt          DateTime @default(now())
+
+  @@index([claimId])
+  @@index([agentName])
+}
+
+/// API keys for external systems integrating inbound with the platform.
+model ApiKey {
+  id          String    @id @default(cuid())
+  name        String
+  keyHash     String    @unique // sha-256 hash of the secret
+  prefix      String    // first 8 chars, shown in UI for identification
+  scopes      String    @default("[\"read\",\"write\"]") // JSON array
+  active      Boolean   @default(true)
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  createdBy   String    @default("system")
+}
+
+/// Outbound webhook subscriptions — push events to external systems.
+model Webhook {
+  id          String   @id @default(cuid())
+  url         String
+  secret      String   // used to HMAC-sign payloads
+  events      String   @default("[\"*\"]") // JSON array of event names, or ["*"]
+  active      Boolean  @default(true)
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  deliveries  WebhookDelivery[]
+}
+
+/// Delivery log for each webhook attempt (for retries and observability).
+model WebhookDelivery {
+  id           String   @id @default(cuid())
+  webhookId    String
+  webhook      Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event        String
+  payload      String   // JSON
+  status       String   @default("PENDING") // PENDING | SUCCESS | FAILED
+  statusCode   Int?
+  responseBody String?
+  attempts     Int      @default(0)
+  createdAt    DateTime @default(now())
+  deliveredAt  DateTime?
+
+  @@index([webhookId])
+  @@index([status])
+}

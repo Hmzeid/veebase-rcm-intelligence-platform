@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { useRCMStore } from '@/lib/rcm-store';
+import { apiProcessClaim } from '@/lib/rcm-sync';
 import { useI18n } from '@/lib/i18n';
 import { AgentOutput, AppealStrategy, ClaimRecord, ClaimStatus, ConfidenceLevel, STATUS_COLORS, PIPELINE_STAGES } from '@/lib/rcm-types';
 import { CLAIM_AGENT_OUTPUTS, APPEAL_STRATEGIES } from '@/lib/rcm-data';
@@ -338,7 +340,27 @@ function ClaimRow({ claim, onClick }: { claim: ClaimRecord; onClick: () => void 
 
 function ClaimDetail({ claim }: { claim: ClaimRecord }) {
   const { t } = useI18n();
+  const { upsertClaim, setSelectedClaim } = useRCMStore();
+  const [processing, setProcessing] = useState(false);
   const statusIdx = PIPELINE_STAGES.indexOf(claim.status as ClaimStatus);
+
+  const isTerminalClaim = ['PAID', 'CLOSED', 'WRITTEN_OFF'].includes(claim.status);
+
+  async function runAgents() {
+    setProcessing(true);
+    const res = await apiProcessClaim(claim.id, 'auto');
+    setProcessing(false);
+    if (res?.claim) {
+      upsertClaim(res.claim);
+      setSelectedClaim(res.claim);
+      const steps = res.stepsRun ?? res.steps?.length ?? 0;
+      toast.success(`Agents advanced ${claim.claimNumber}`, {
+        description: `${steps} stage(s) processed → now ${String(res.claim.status).replace('_', ' ')}.`,
+      });
+    } else {
+      toast.error('Processing failed', { description: 'Could not run the agent pipeline for this claim.' });
+    }
+  }
 
   // Get agent outputs for this claim
   const agentOutputs = CLAIM_AGENT_OUTPUTS.filter(
@@ -354,12 +376,23 @@ function ClaimDetail({ claim }: { claim: ClaimRecord }) {
   return (
     <div className="space-y-4">
       <SheetHeader className="p-0">
-        <SheetTitle className="flex items-center gap-2">
+        <SheetTitle className="flex items-center gap-2 flex-wrap">
           <FileText className="w-5 h-5" />
           {claim.claimNumber}
           <Badge variant="secondary" className={cn('text-xs', STATUS_COLORS[claim.status])}>
             {claim.status.replace('_', ' ')}
           </Badge>
+          {!isTerminalClaim && (
+            <Button
+              size="sm"
+              className="h-7 text-xs ml-auto bg-violet-600 hover:bg-violet-700 text-white"
+              onClick={runAgents}
+              disabled={processing}
+            >
+              <Zap className={cn('w-3.5 h-3.5 mr-1.5', processing && 'animate-pulse')} />
+              {processing ? 'Running…' : t.claims.runAgents}
+            </Button>
+          )}
         </SheetTitle>
       </SheetHeader>
 
@@ -560,6 +593,7 @@ function ClaimDetail({ claim }: { claim: ClaimRecord }) {
 
 // ========== Processing Timeline Component ==========
 function ProcessingTimeline({ outputs, claimAmount }: { outputs: AgentOutput[]; claimAmount: number }) {
+  const { t } = useI18n();
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
@@ -948,6 +982,7 @@ function OutputSummary({ output, claimAmount }: { output: AgentOutput; claimAmou
 
 // ========== Appeal Strategy Panel ==========
 function AppealStrategyPanel({ claim, recommendedStrategyKey }: { claim: ClaimRecord; recommendedStrategyKey?: string }) {
+  const { t } = useI18n();
   // Determine which strategies are most relevant based on denial info
   const getRecommendedStrategies = () => {
     if (recommendedStrategyKey) {

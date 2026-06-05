@@ -777,3 +777,23 @@ Stage Summary:
 - Arabic Language: Full i18n with 250+ translated strings, RTL layout, language toggle
 - 10 views total: Dashboard, Agents, Claims, Ingestion Hub, Escalations, Audit Trail, Payer Rules, Analytics, AI Chat, Settings
 - Complete application with database, API, real-time simulation, and bilingual support
+
+---
+Task ID: 14
+Agent: Production Hardening & Integration
+Task: Make the platform functional, persistent, and integration-ready; complete documentation; publish to GitHub
+
+Work Log:
+- Fixed runtime DB resolution (src/lib/db.ts): SQLite relative paths now resolve to an absolute path anchored at the project root, so the standalone server uses the real database instead of silently falling back to mock data. Non-file DATABASE_URLs (Postgres/MySQL) pass through for managed-DB deployments.
+- Extended Prisma schema with production models: AuditLog, ClaimEvent, ApiKey, Webhook, WebhookDelivery. Updated seed to seed audit logs and clear all tables for a pristine demo state.
+- Built a deterministic, explainable RCM processing engine (src/lib/rcm-engine.ts): per-payer rule book, readiness & denial-risk scoring, full claim lifecycle state machine, and Phase-1 HITL governance (AUTO/REVIEW/APPROVE gates; prohibited actions never auto-executed).
+- Built the server service layer (src/lib/server/): claim-service (engine orchestration + persistence + escalations + events), audit, webhooks (HMAC-SHA256 signed delivery), and API-key auth (bootstrap-open then enforced; scopes; master key).
+- Added internal endpoints: /api/claims/[id]/process, /api/audit, /api/health; rewrote /api/claims and /api/escalations to be DB-authoritative.
+- Added the external integration surface /api/v1/*: claims (CRUD + batch), claims/[id]/process, eligibility, webhooks (+[id]), keys, and HL7 FHIR R4 Claim ingest/read. Published OpenAPI at /api/openapi.json and a Swagger UI at /docs.
+- Wired the frontend to the live APIs: store hydrates from the DB on load; create-claim, escalation ack/resolve, and a new live "Run Agents" button persist via the API.
+- Fixed real runtime bugs: child components (ProcessingTimeline, AppealStrategyPanel, EscalationCard) referenced the i18n `t` without calling useI18n() — would crash on render; added the hooks and the runAgents translation key (EN/AR).
+- End-to-end tested the whole API surface (health, eligibility, create, autonomous processing stopping at human gates, signed webhook delivery, FHIR, API-key enforcement) — all passing.
+- Wrote documentation: README.md, docs/ARCHITECTURE.md, docs/INTEGRATION.md, docs/API.md, rebuilt public/whitepaper.html, and generated a detailed Word document docs/Veebase-RCM-Intelligence-Platform.docx (solution overview, use cases, operating guide, business benefits). Added LICENSE (MIT) and .env.example.
+
+Stage Summary:
+- The platform is now genuinely functional and persistent, with a production-grade, standards-based integration API (inbound REST + FHIR, outbound signed webhooks) and complete documentation. Build passes; all endpoints verified end-to-end.

@@ -1,78 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ESCALATIONS } from '@/lib/rcm-data';
 import { db } from '@/lib/db';
-import type { EscalationStatus, EscalationRecord } from '@/lib/rcm-types';
+import { writeAudit } from '@/lib/server/audit';
+import { emitEvent } from '@/lib/server/webhooks';
+import type { EscalationRecord, EscalationStatus } from '@/lib/rcm-types';
 
-// In-memory store for mutation tracking (resets on server restart)
-// In production this would use the database
-const escalationOverrides = new Map<string, Partial<EscalationRecord & { resolvedAt?: string }>>();
+export const dynamic = 'force-dynamic';
 
-function getEscalations() {
-  return ESCALATIONS.map((esc) => {
-    const override = escalationOverrides.get(esc.id);
-    return override ? { ...esc, ...override } : esc;
-  });
+function serialize(e: {
+  id: string; claimId: string; claimNumber: string; level: number; reason: string;
+  agentName: string; status: string; tags: string; assignedTo: string | null;
+  resolvedAt: Date | null; createdAt: Date;
+}): EscalationRecord {
+  let tags: string[] = [];
+  try { tags = JSON.parse(e.tags || '[]'); } catch { /* ignore */ }
+  return {
+    id: e.id, claimId: e.claimId, claimNumber: e.claimNumber, level: e.level,
+    reason: e.reason, agentName: e.agentName, status: e.status as EscalationStatus,
+    tags, assignedTo: e.assignedTo ?? undefined,
+    resolvedAt: e.resolvedAt?.toISOString() ?? undefined,
+    createdAt: e.createdAt.toISOString(),
+  };
 }
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-
     const status = searchParams.get('status') as EscalationStatus | null;
     const level = searchParams.get('level') ? parseInt(searchParams.get('level')!, 10) : null;
-    const tag = searchParams.get('tag') as string | null;
-    const agentName = searchParams.get('agentName') as string | null;
+    const tag = searchParams.get('tag');
+    const agentName = searchParams.get('agentName');
 
-    let filtered = getEscalations();
+    const rows = await db.escalation.findMany({ orderBy: { createdAt: 'desc' } });
+    let filtered = rows.map(serialize);
 
-    // Apply filters
-    if (status) {
-      filtered = filtered.filter((e) => e.status === status);
-    }
-    if (level !== null) {
-      filtered = filtered.filter((e) => e.level === level);
-    }
-    if (tag) {
-      filtered = filtered.filter((e) => e.tags.includes(tag));
-    }
-    if (agentName) {
-      filtered = filtered.filter((e) => e.agentName === agentName);
-    }
-
-    // Compute summary
-    const pendingCount = filtered.filter((e) => e.status === 'PENDING').length;
-    const acknowledgedCount = filtered.filter((e) => e.status === 'ACKNOWLEDGED').length;
-    const resolvedCount = filtered.filter((e) => e.status === 'RESOLVED').length;
-    const escalatedCount = filtered.filter((e) => e.status === 'ESCALATED').length;
+    if (status) filtered = filtered.filter((e) => e.status === status);
+    if (level !== null) filtered = filtered.filter((e) => e.level === level);
+    if (tag) filtered = filtered.filter((e) => e.tags.includes(tag));
+    if (agentName) filtered = filtered.filter((e) => e.agentName === agentName);
 
     const levelDistribution: Record<number, number> = {};
-    for (const e of filtered) {
-      levelDistribution[e.level] = (levelDistribution[e.level] || 0) + 1;
-    }
-
-    // Critical escalations (level 4+ that are pending)
-    const criticalCount = filtered.filter(
-      (e) => e.level >= 4 && (e.status === 'PENDING' || e.status === 'ESCALATED')
-    ).length;
+    for (const e of filtered) levelDistribution[e.level] = (levelDistribution[e.level] || 0) + 1;
 
     return NextResponse.json({
       escalations: filtered,
       summary: {
         total: filtered.length,
-        pendingCount,
-        acknowledgedCount,
-        resolvedCount,
-        escalatedCount,
-        criticalCount,
+        pendingCount: filtered.filter((e) => e.status === 'PENDING').length,
+        acknowledgedCount: filtered.filter((e) => e.status === 'ACKNOWLEDGED').length,
+        resolvedCount: filtered.filter((e) => e.status === 'RESOLVED').length,
+        escalatedCount: filtered.filter((e) => e.status === 'ESCALATED').length,
+        criticalCount: filtered.filter((e) => e.level >= 4 && (e.status === 'PENDING' || e.status === 'ESCALATED')).length,
         levelDistribution,
       },
     });
   } catch (error) {
     console.error('Escalations API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to retrieve escalation data' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to retrieve escalation data' }, { status: 500 });
   }
 }
 
@@ -87,100 +70,48 @@ export async function PATCH(request: NextRequest) {
   try {
     const body: PatchBody = await request.json();
     const { id, action, assignedTo, resolution } = body;
-
-    if (!id || !action) {
-      return NextResponse.json(
-        { error: 'Escalation id and action are required' },
-        { status: 400 }
-      );
-    }
-
+    if (!id || !action) return NextResponse.json({ error: 'Escalation id and action are required' }, { status: 400 });
     if (action !== 'acknowledge' && action !== 'resolve') {
-      return NextResponse.json(
-        { error: 'Action must be either "acknowledge" or "resolve"' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Action must be "acknowledge" or "resolve"' }, { status: 400 });
     }
 
-    // Find the escalation
-    const escalation = ESCALATIONS.find((e) => e.id === id);
-    if (!escalation) {
-      return NextResponse.json(
-        { error: `Escalation with id "${id}" not found` },
-        { status: 404 }
-      );
+    const existing = await db.escalation.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: `Escalation "${id}" not found` }, { status: 404 });
+
+    if (action === 'acknowledge' && existing.status !== 'PENDING') {
+      return NextResponse.json({ error: 'Only PENDING escalations can be acknowledged' }, { status: 409 });
+    }
+    if (action === 'resolve' && existing.status !== 'ACKNOWLEDGED' && existing.status !== 'PENDING') {
+      return NextResponse.json({ error: 'Only PENDING or ACKNOWLEDGED escalations can be resolved' }, { status: 409 });
     }
 
-    // Check current state transitions
-    const currentEsc = getEscalations().find((e) => e.id === id);
-    if (currentEsc) {
-      if (action === 'acknowledge' && currentEsc.status !== 'PENDING') {
-        return NextResponse.json(
-          { error: 'Only PENDING escalations can be acknowledged' },
-          { status: 409 }
-        );
-      }
-      if (action === 'resolve' && currentEsc.status !== 'ACKNOWLEDGED' && currentEsc.status !== 'PENDING') {
-        return NextResponse.json(
-          { error: 'Only PENDING or ACKNOWLEDGED escalations can be resolved' },
-          { status: 409 }
-        );
-      }
-    }
-
-    // Apply the state change (in-memory override)
-    if (action === 'acknowledge') {
-      escalationOverrides.set(id, {
-        ...escalationOverrides.get(id),
-        status: 'ACKNOWLEDGED',
-        assignedTo: assignedTo || 'Current User',
-      });
-    } else if (action === 'resolve') {
-      escalationOverrides.set(id, {
-        ...escalationOverrides.get(id),
-        status: 'RESOLVED',
-        resolvedAt: new Date().toISOString(),
-        assignedTo: assignedTo || escalationOverrides.get(id)?.assignedTo || 'Current User',
-      });
-    }
-
-    // Also try to persist to the database
-    try {
-      if (action === 'acknowledge') {
-        await db.escalation.update({
-          where: { id },
-          data: {
-            status: 'ACKNOWLEDGED',
-            assignedTo: assignedTo || 'Current User',
-          },
-        });
-      } else if (action === 'resolve') {
-        await db.escalation.update({
-          where: { id },
-          data: {
-            status: 'RESOLVED',
-            resolvedAt: new Date(),
-            assignedTo: assignedTo || escalationOverrides.get(id)?.assignedTo || 'Current User',
-          },
-        });
-      }
-    } catch (dbError) {
-      // Database update is best-effort; don't fail if record doesn't exist in DB
-      console.warn('DB escalation update failed (non-critical):', dbError);
-    }
-
-    const updated = getEscalations().find((e) => e.id === id);
-
-    return NextResponse.json({
-      escalation: updated,
-      action,
-      message: `Escalation ${id} successfully ${action === 'acknowledge' ? 'acknowledged' : 'resolved'}${resolution ? `: ${resolution}` : ''}`,
+    const updated = await db.escalation.update({
+      where: { id },
+      data: action === 'acknowledge'
+        ? { status: 'ACKNOWLEDGED', assignedTo: assignedTo || 'Current User' }
+        : { status: 'RESOLVED', resolvedAt: new Date(), assignedTo: assignedTo || existing.assignedTo || 'Current User' },
     });
+
+    const esc = serialize(updated);
+    await writeAudit({
+      action: action === 'acknowledge' ? 'ESCALATE' : 'RESOLVE',
+      actor: assignedTo || 'Current User',
+      actorRole: 'Staff',
+      claimId: esc.claimId,
+      claimNumber: esc.claimNumber,
+      agentName: esc.agentName,
+      details: `Escalation ${action === 'acknowledge' ? 'acknowledged' : 'resolved'} for ${esc.claimNumber}. Reason: ${esc.reason}${resolution ? ` — ${resolution}` : ''}`,
+      previousValue: existing.status,
+      newValue: esc.status,
+      riskLevel: esc.level >= 4 ? 'HIGH' : 'MEDIUM',
+      tags: ['ESCALATION', action.toUpperCase()],
+      source: 'ui',
+    });
+    if (action === 'resolve') await emitEvent('escalation.resolved', { escalation: esc });
+
+    return NextResponse.json({ escalation: esc, action, message: `Escalation ${id} ${action === 'acknowledge' ? 'acknowledged' : 'resolved'}.` });
   } catch (error) {
     console.error('Escalation PATCH error:', error);
-    return NextResponse.json(
-      { error: 'Failed to update escalation' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to update escalation' }, { status: 500 });
   }
 }
