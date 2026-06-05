@@ -24,6 +24,10 @@ Veebase orchestrates **12 specialized AI agents** across the revenue cycle, driv
 - [Architecture Overview](#architecture-overview)
 - [Quick Start](#quick-start)
 - [Scripts](#scripts)
+- [AI Providers](#ai-providers)
+- [Access Control (RBAC)](#access-control-rbac)
+- [Database Portability](#database-portability)
+- [Scale-Out & Observability](#scale-out--observability)
 - [Environment Variables](#environment-variables)
 - [Project Structure](#project-structure)
 - [Integration](#integration)
@@ -38,7 +42,10 @@ Veebase orchestrates **12 specialized AI agents** across the revenue cycle, driv
 - **12 specialized RCM agents** across 4 categories (linear pipeline, sentinel, knowledge, analytics).
 - **Deterministic RCM engine** — a pure, explainable rules engine that advances claims through the lifecycle, computes a **readiness score** and a **denial-risk score**, and applies a per-payer rule book (prior-auth thresholds, timely-filing windows, appeal windows, reimbursement rates).
 - **Human-in-the-Loop governance** — `AUTO` / `REVIEW` / `APPROVE` gates. Auto-processing **stops** at any human gate. Prohibited actions (auto-accepting low-confidence coding, auto write-off, submitting a dirty claim, etc.) are never performed automatically.
-- **DB-backed persistence** with Prisma + SQLite. The UI hydrates from real APIs and persists every change.
+- **Pluggable AI providers** — chat (LLM) and PDF extraction (VLM) run through a provider-agnostic router with automatic **failover**: pick **z.ai** (bundled, default), **OpenAI-compatible** (OpenAI, Groq, Together, OpenRouter, vLLM, LM Studio), **Anthropic Claude**, or **local Ollama**; switch at runtime from Settings. A deterministic knowledge base is the always-on final fallback.
+- **Role-based access control (RBAC)** — five roles (ADMIN, RCM_MANAGER, BILLER, COMPLIANCE, VIEWER) mapped to a capability matrix, DB-backed users with scrypt-hashed passwords, and an optional sign-in gate.
+- **DB-backed persistence** with Prisma. **SQLite** is the zero-config default; the data layer is provider-agnostic and can target **Postgres/MySQL** with no code changes (`scripts/switch-db.sh`).
+- **Production-ready operations** — optional **PHI encryption-at-rest** (AES-256-GCM), optional **Redis** shared store for cross-instance rate limiting, and a `/api/metrics` endpoint (JSON or Prometheus).
 - **Integration API** — internal/UI endpoints plus a versioned external `v1` API with API-key auth, batch ingestion, FHIR R4, and outbound HMAC-signed webhooks.
 - **OpenAPI 3.0 spec** at `/api/openapi.json` and **interactive Swagger UI** at `/docs`.
 - **Document ingestion** — PDF → claim extraction (VLM-assisted, with template-based fallback) and hospital-specific templates.
@@ -187,6 +194,89 @@ Defined in `package.json`:
 
 ---
 
+## AI Providers
+
+The AI assistant (`POST /api/chat`) and PDF claim extraction (`POST /api/ingest`) run through a **provider-agnostic router** (`src/lib/ai`). The active provider is selected at runtime (persisted in the DB) or via env, and an automatic **failover chain** keeps the feature available when a provider is down.
+
+| Provider | `id` | Notes |
+|----------|------|-------|
+| **Z.ai** (bundled SDK) | `zai` | Zero-config default — no API key required. |
+| **OpenAI-compatible** | `openai` | Any OpenAI-style `/chat/completions` endpoint: OpenAI, Groq, Together, OpenRouter, vLLM, LM Studio. |
+| **Anthropic Claude** | `anthropic` | Claude Messages API (chat + document/vision). |
+| **Local (Ollama)** | `ollama` | Local models via Ollama's OpenAI-compatible endpoint — no API key. |
+
+- **Failover chain.** Each chat/extraction request walks `active → fallbacks → deterministic fallback`. Fallbacks come from `RCM_AI_FALLBACKS` or, if unset, are auto-derived from every other *configured* provider. If **every** provider fails, the platform returns a deterministic knowledge-base answer so the feature never hard-fails.
+- **Runtime switching.** `GET /api/ai` lists providers, the active one, the resolved chain, and per-provider config status. `POST /api/ai` switches the active provider (requires the `ai.manage` capability) and `POST /api/ai/test` runs a connectivity check. **Settings → "AI Models"** drives all of this from the UI.
+- **Provenance.** Chat and ingest responses report the `provider` and `model` that produced them.
+
+Configure providers via env (see [Environment Variables](#environment-variables)); the active provider can also be set with `RCM_AI_PROVIDER` and overridden generically with `RCM_AI_MODEL` / `RCM_AI_BASE_URL` / `RCM_AI_API_KEY`.
+
+---
+
+## Access Control (RBAC)
+
+An optional sign-in gate enforces **role-based access control**. Routes and the UI check *capabilities* (not roles directly), so the policy can evolve without touching call sites (`src/lib/server/rbac.ts`).
+
+**Role → capability matrix**
+
+| Capability | ADMIN | RCM_MANAGER | BILLER | COMPLIANCE | VIEWER |
+|------------|:-----:|:-----------:|:------:|:----------:|:------:|
+| `claims.view` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `claims.create` | ✅ | ✅ | ✅ | — | — |
+| `claims.process` | ✅ | ✅ | ✅ | — | — |
+| `escalation.acknowledge` | ✅ | ✅ | ✅ | ✅ | — |
+| `escalation.resolve` | ✅ | ✅ | ✅ | ✅ | — |
+| `escalation.resolve.l4` | ✅ | ✅ | — | ✅ | — |
+| `writeoff.approve` | ✅ | ✅ | — | — | — |
+| `audit.view` | ✅ | ✅ | — | ✅ | — |
+| `ai.manage` | ✅ | ✅ | — | — | — |
+| `keys.manage` | ✅ | — | — | — | — |
+| `webhooks.manage` | ✅ | ✅ | — | — | — |
+| `settings.manage` | ✅ | ✅ | — | — | — |
+| `users.manage` | ✅ | — | — | — | — |
+
+**Authentication.** The gate activates when `RCM_AUTH_ENABLED=true` **or** `RCM_UI_PASSWORD` is set. `POST /api/auth/login` authenticates against the **User** table (matched by email or name, scrypt-hashed passwords), falling back to the env single-user (`RCM_UI_USER` / `RCM_UI_PASSWORD`) as an **ADMIN** when no users exist. Sessions carry the role in a signed HttpOnly cookie. `GET /api/auth/session` returns `{ authEnabled, user, role, capabilities }`. Settings shows an **Account** card (user / role / sign-out).
+
+**User management.** `GET /api/users` lists users and `POST /api/users` creates them — both require the `users.manage` capability (ADMIN). Passwords are never returned.
+
+**Seeded demo users** (inert until auth is enabled; all `@veebase.health`):
+
+| Email | Password | Role |
+|-------|----------|------|
+| `admin@veebase.health` | `Admin!234` | ADMIN |
+| `manager@veebase.health` | `Manager!234` | RCM_MANAGER |
+| `biller@veebase.health` | `Biller!234` | BILLER |
+| `compliance@veebase.health` | `Comply!234` | COMPLIANCE |
+| `viewer@veebase.health` | `Viewer!234` | VIEWER |
+
+> When auth is **disabled** (the open demo default), callers are treated as an implicit ADMIN so every feature stays reachable.
+
+---
+
+## Database Portability
+
+SQLite is the **zero-config default**, but the Prisma data layer is provider-agnostic. To move to a managed database, flip the datasource provider with the helper script and re-sync:
+
+```bash
+scripts/switch-db.sh postgresql        # or: mysql | sqlite
+export DATABASE_URL="postgresql://user:pass@host:5432/rcm"
+bunx prisma generate
+bunx prisma db push                    # or: bunx prisma migrate deploy
+bun run prisma/seed.ts                 # optional demo data
+```
+
+`switch-db.sh` rewrites the `provider` line in `prisma/schema.prisma`; the rest is standard Prisma. No application code changes are required.
+
+---
+
+## Scale-Out & Observability
+
+- **Shared store (optional Redis).** By default rate-limit counters are in-memory (fine for a single instance). Set `REDIS_URL` to share them across instances for horizontal scale-out (`src/lib/server/kv.ts`); this requires the optional `ioredis` package. The Edge middleware remains the per-instance first-line limiter, and the Redis-backed limiter (in `requireAuth`) is authoritative when configured. **Idempotency keys are already shared** via the primary database, so retries are safe across instances regardless of Redis.
+- **PHI encryption-at-rest.** Set `RCM_ENCRYPTION_KEY` to encrypt sensitive fields (national IDs) with **AES-256-GCM** at rest. Ciphertext is stored as `enc:1:…` and returned **decrypted** via the API; plaintext/legacy values pass through unchanged, so enabling encryption is backward compatible. A PII-redaction helper masks 14-digit IDs in logs (`src/lib/server/crypto-field.ts`).
+- **Metrics.** `GET /api/metrics` exposes operational metrics — claim totals and by-status, collection rate, pending escalations, webhook delivery failures, and user count — as JSON, or in Prometheus exposition format with `?format=prometheus`.
+
+---
+
 ## Environment Variables
 
 | Variable | Default | Description |
@@ -199,11 +289,49 @@ Defined in `package.json`:
 | `RCM_RATE_WINDOW_MS` | `60000` | Rate-limit window length in milliseconds (default 60s). |
 | `RCM_CORS_ORIGINS` | `*` | Comma-separated CORS allow-list for `/api/v1` (with OPTIONS preflight handling). |
 | `RCM_WEBHOOK_MAX_ATTEMPTS` | `3` | Max delivery attempts for outbound webhooks (bounded exponential backoff). |
-| `RCM_UI_USER` | `admin` | Username for the optional UI auth gate (used when `RCM_UI_PASSWORD` is set). |
-| `RCM_UI_PASSWORD` | — | When set, the dashboard requires login. Unset = app is open (default). |
-| `RCM_SESSION_SECRET` | — | Secret used to sign the HttpOnly UI session cookie. |
 
-> **Note:** SQLite is the default and the schema's `datasource` provider. To use Postgres/MySQL you must also update the `provider` in `prisma/schema.prisma` and re-run `prisma generate` / `prisma db push`.
+### Auth & RBAC
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RCM_AUTH_ENABLED` | `false` | When `true`, activates the sign-in gate and role enforcement (also activated implicitly by `RCM_UI_PASSWORD`). |
+| `RCM_UI_USER` | `admin` | Username for the env single-user fallback. |
+| `RCM_UI_PASSWORD` | — | Password for the env single-user (role ADMIN). Setting it enables the auth gate. Unset = app is open (default). |
+| `RCM_SESSION_SECRET` | — | Secret used to sign the HttpOnly UI session cookie. |
+| `RCM_SEED_ADMIN_PASSWORD` | `Admin!234` | Password assigned to the seeded `admin@veebase.health` user. |
+
+### AI providers
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RCM_AI_PROVIDER` | `zai` | Active provider: `zai` \| `openai` \| `anthropic` \| `ollama` (DB runtime selection takes precedence). |
+| `RCM_AI_FALLBACKS` | — | Comma-separated failover chain (e.g. `openai,ollama`). Auto-derived from configured providers if unset. |
+| `RCM_AI_TIMEOUT_MS` | `30000` | Per-request timeout for remote providers. |
+| `RCM_AI_MODEL` / `RCM_AI_VISION_MODEL` | — | Generic model overrides applied to the **active** provider. |
+| `RCM_AI_BASE_URL` / `RCM_AI_API_KEY` | — | Generic endpoint/key overrides applied to the **active** provider. |
+| `OPENAI_API_KEY` (or `RCM_OPENAI_API_KEY`) | — | API key for the OpenAI-compatible provider. |
+| `RCM_OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible base URL (point at Groq, Together, vLLM, LM Studio, …). |
+| `RCM_OPENAI_MODEL` | `gpt-4o-mini` | OpenAI-compatible chat model. |
+| `RCM_OPENAI_VISION_MODEL` | (= chat model) | OpenAI-compatible vision model for PDF extraction. |
+| `ANTHROPIC_API_KEY` (or `RCM_ANTHROPIC_API_KEY`) | — | API key for the Anthropic provider. |
+| `RCM_ANTHROPIC_MODEL` | `claude-3-5-sonnet-latest` | Anthropic chat/vision model. |
+| `RCM_OLLAMA_BASE_URL` | `http://localhost:11434/v1` | Ollama OpenAI-compatible endpoint. |
+| `RCM_OLLAMA_MODEL` | `llama3.1` | Ollama chat model. |
+| `RCM_OLLAMA_VISION_MODEL` | `llava` | Ollama vision model. |
+
+### PHI encryption
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RCM_ENCRYPTION_KEY` | — | Enables AES-256-GCM encryption-at-rest of sensitive fields (national IDs). Use 64 hex chars for a raw 32-byte key, or any passphrase (derived via scrypt). Unset = plaintext (open demo default). |
+
+### Scale-out (Redis)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_URL` | — | When set, enables cross-instance rate limiting via Redis (requires the optional `ioredis` package). Idempotency keys are shared via the database regardless. |
+
+> **Note:** SQLite is the default and the schema's `datasource` provider. To use Postgres/MySQL, run `scripts/switch-db.sh postgresql` (or `mysql`) — it flips the `provider` in `prisma/schema.prisma` — then set `DATABASE_URL` and re-run `prisma generate` / `prisma db push`. See [Database Portability](#database-portability).
 
 ---
 
@@ -212,8 +340,10 @@ Defined in `package.json`:
 ```
 RCM-AI/
 ├── prisma/
-│   ├── schema.prisma        # Data model (9 models)
-│   └── seed.ts              # Demo data seeder
+│   ├── schema.prisma        # Data model (incl. User, Setting, IdempotencyKey)
+│   └── seed.ts              # Demo data seeder (+ seeded RBAC users)
+├── scripts/
+│   └── switch-db.sh         # Flip Prisma provider: sqlite | postgresql | mysql
 ├── public/
 │   └── whitepaper.html      # Standalone technical & business whitepaper
 ├── src/
@@ -233,9 +363,16 @@ RCM-AI/
 │       ├── rcm-data.ts      # 12 agents, KPIs, appeal strategies, templates
 │       ├── rcm-types.ts     # Shared types
 │       ├── db.ts            # Prisma client + DB URL resolution
+│       ├── ai/             # Pluggable AI router (provider config, failover)
+│       │   ├── config.ts        # provider configs + env resolution
+│       │   ├── providers.ts     # z.ai / OpenAI / Anthropic call impls
+│       │   └── index.ts         # router: active provider + failover chain
 │       ├── server/          # Service layer
 │       │   ├── claim-service.ts  # create/list/update/process claims
 │       │   ├── auth.ts           # API-key auth & bootstrap mode
+│       │   ├── rbac.ts           # roles → capability matrix
+│       │   ├── crypto-field.ts   # AES-256-GCM PHI encryption + PII redaction
+│       │   ├── kv.ts             # in-memory / Redis shared store
 │       │   ├── audit.ts          # immutable audit writer
 │       │   └── webhooks.ts       # outbound signed event dispatch
 │       └── i18n/            # English + Arabic translations, RTL
@@ -254,6 +391,7 @@ The platform exposes both **internal/UI** endpoints and a versioned **external `
 - **Authentication** uses an API key sent as `X-API-Key: <key>` or `Authorization: Bearer <key>`. While **no keys exist**, the gateway runs in an **open bootstrap mode**; once the first key is created via `POST /api/v1/keys`, auth is **enforced** on all `/api/v1` routes. An `RCM_MASTER_KEY` env var is always accepted.
 - **Inbound:** create claims (single, batch, or HL7 FHIR R4), run the agent pipeline, and check eligibility.
 - **Outbound:** register webhooks to receive HMAC-signed lifecycle events (`claim.created`, `claim.denied`, `claim.paid`, `escalation.created`, …).
+- **Operations & control:** `GET /api/metrics` (JSON or Prometheus), the AI-provider control plane (`GET/POST /api/ai`, `POST /api/ai/test`), and user management (`GET/POST /api/users`, requires `users.manage`).
 - **Specs:** OpenAPI 3.0 at `GET /api/openapi.json`; interactive Swagger UI at `GET /docs`.
 
 See the full guide in [`docs/INTEGRATION.md`](docs/INTEGRATION.md) and the endpoint cheat-sheet in [`docs/API.md`](docs/API.md).
@@ -282,8 +420,13 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#human-in-the-loop-governance) 
 - **Idempotency keys** — single claim create (`POST /api/v1/claims`) honors an `Idempotency-Key` request header; repeating the same key (scoped per API key) returns the original claim instead of creating a duplicate.
 - **Webhook reliability** — deliveries retry with bounded exponential backoff (default 3 attempts, `RCM_WEBHOOK_MAX_ATTEMPTS`) and run in the background so they never block the API response. Inspect recent attempts via `GET /api/v1/webhooks/{id}/deliveries` and send a signed `ping` via `POST /api/v1/webhooks/{id}/test`.
 - **Configurable API auth** — set `RCM_REQUIRE_API_AUTH=true` to require an API key on `/api/v1` even before any key is provisioned (disables open bootstrap mode); provision the first key with `RCM_MASTER_KEY`.
-- **Optional UI auth gate** — when `RCM_UI_PASSWORD` is set, the dashboard requires login (`/login` page, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session`, HttpOnly signed-cookie session). Unset = open by default.
-- **Automated tests + CI** — the codebase type-checks cleanly (`ignoreBuildErrors` is off), ships a Bun test suite (`bun test`, 30 tests), and a GitHub Actions workflow (`.github/workflows/ci.yml`) runs install → prisma generate → db push → lint → typecheck → test → build.
+- **Optional UI auth gate + RBAC** — when `RCM_AUTH_ENABLED=true` or `RCM_UI_PASSWORD` is set, the dashboard requires login (`/login` page, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session`, HttpOnly signed-cookie session). Sessions carry one of five roles; internal routes enforce a capability matrix (see [Access Control (RBAC)](#access-control-rbac)). Unset = open by default.
+- **PHI encryption-at-rest** — set `RCM_ENCRYPTION_KEY` to AES-256-GCM-encrypt sensitive fields (national IDs); ciphertext is stored as `enc:1:…` and returned decrypted, backward-compatible with existing plaintext rows. A redaction helper masks 14-digit IDs in logs.
+- **Pluggable AI with failover** — chat/extraction route through z.ai / OpenAI-compatible / Anthropic / Ollama with an automatic fallback chain and a deterministic final fallback; switch at runtime via `POST /api/ai` (`ai.manage`). See [AI Providers](#ai-providers).
+- **Database portability** — `scripts/switch-db.sh sqlite|postgresql|mysql` retargets the Prisma datasource for a managed DB with no code changes.
+- **Scale-out shared store** — set `REDIS_URL` for cross-instance rate limiting (optional `ioredis`); idempotency keys are already DB-shared.
+- **Operational metrics** — `GET /api/metrics` exposes claims/escalations/webhook/user metrics as JSON or Prometheus (`?format=prometheus`).
+- **Automated tests + CI** — the codebase type-checks cleanly (`ignoreBuildErrors` is off), ships a Bun test suite (`bun test`), and a GitHub Actions workflow (`.github/workflows/ci.yml`) runs install → prisma generate → db push → lint → typecheck → test → build.
 
 ---
 

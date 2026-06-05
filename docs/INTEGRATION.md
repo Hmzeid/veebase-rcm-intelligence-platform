@@ -8,7 +8,10 @@ Throughout, the base URL placeholder is **`https://rcm.example.com`**. Replace i
 
 - [Authentication & Bootstrap](#authentication--bootstrap)
 - [Authentication Modes](#authentication-modes)
+- [RBAC & Authentication](#rbac--authentication)
 - [Scopes](#scopes)
+- [AI Provider Configuration](#ai-provider-configuration)
+- [Deployment & Scale-Out](#deployment--scale-out)
 - [Conventions](#conventions)
 - [Reliability & Limits](#reliability--limits)
 - [API Keys](#api-keys)
@@ -88,6 +91,49 @@ A `/login` page is served for interactive sign-in. **Public paths** that bypass 
 
 ---
 
+## RBAC & Authentication
+
+When the UI auth gate is enabled (`RCM_AUTH_ENABLED=true` **or** `RCM_UI_PASSWORD` set), sessions carry one of **five roles**, and internal routes check *capabilities* rather than roles directly.
+
+**Roles & key capabilities**
+
+| Role | Highlights |
+|------|------------|
+| `ADMIN` | Everything, incl. `keys.manage`, `users.manage`, `ai.manage`, `settings.manage`. |
+| `RCM_MANAGER` | Claims + escalations (incl. L4), `writeoff.approve`, `audit.view`, `ai.manage`, `webhooks.manage`, `settings.manage`. |
+| `BILLER` | `claims.*`, `escalation.acknowledge`, `escalation.resolve`. |
+| `COMPLIANCE` | `claims.view`, `audit.view`, escalations (incl. L4). |
+| `VIEWER` | `claims.view` only. |
+
+The full capability matrix is in the [README](../README.md#access-control-rbac) and `src/lib/server/rbac.ts`.
+
+**Login.** `POST /api/auth/login` accepts `{ username | email, password }`. It authenticates against the **User** table (matched by email or name; scrypt-hashed passwords), and falls back to the env single-user (`RCM_UI_USER` / `RCM_UI_PASSWORD`) as an **ADMIN** when no users exist. On success it sets a signed HttpOnly session cookie carrying the role (12h lifetime).
+
+```bash
+# Sign in and capture the session cookie.
+curl -s -c cookies.txt -X POST https://rcm.example.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "manager@veebase.health", "password": "Manager!234" }'
+
+# Inspect the session: { authEnabled, user, role, capabilities }.
+curl -s -b cookies.txt https://rcm.example.com/api/auth/session
+```
+
+**Seeded demo users** (inert until auth is enabled; all `@veebase.health`): `admin/Admin!234` (ADMIN), `manager/Manager!234` (RCM_MANAGER), `biller/Biller!234` (BILLER), `compliance/Comply!234` (COMPLIANCE), `viewer/Viewer!234` (VIEWER).
+
+**User management.** `GET /api/users` lists users and `POST /api/users` creates them — both require the `users.manage` capability (ADMIN):
+
+```bash
+curl -s -b cookies.txt -X POST https://rcm.example.com/api/users \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "new.biller@veebase.health", "name": "New Biller",
+        "password": "S3cret!", "role": "BILLER" }'
+```
+
+A capability-protected route returns **401** when no valid session is present and **403** when the role lacks the required capability. With auth disabled (the open demo default), callers are treated as an implicit ADMIN.
+
+---
+
 ## Scopes
 
 | Scope | Grants |
@@ -97,6 +143,111 @@ A `/login` page is served for interactive sign-in. **Public paths** that bypass 
 | `admin` | Implies all scopes — any scope check passes. |
 
 A key created with no scopes defaults to `["read","write"]`. A missing required scope returns **403 Forbidden**.
+
+---
+
+## AI Provider Configuration
+
+The AI assistant (`POST /api/chat`) and PDF claim extraction (`POST /api/ingest`) run through a provider-agnostic router with automatic failover. Supported providers: **z.ai** (bundled, default), **OpenAI-compatible** (OpenAI, Groq, Together, OpenRouter, vLLM, LM Studio), **Anthropic Claude**, and **Ollama** (local).
+
+### Point at a provider via env
+
+```bash
+# OpenAI (or any OpenAI-compatible endpoint).
+RCM_AI_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+RCM_OPENAI_BASE_URL=https://api.openai.com/v1   # or Groq/Together/vLLM/LM Studio
+RCM_OPENAI_MODEL=gpt-4o-mini
+RCM_OPENAI_VISION_MODEL=gpt-4o
+
+# Anthropic Claude.
+RCM_AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+RCM_ANTHROPIC_MODEL=claude-3-5-sonnet-latest
+
+# Local models via Ollama (no API key).
+RCM_AI_PROVIDER=ollama
+RCM_OLLAMA_BASE_URL=http://localhost:11434/v1
+RCM_OLLAMA_MODEL=llama3.1
+RCM_OLLAMA_VISION_MODEL=llava
+```
+
+Generic overrides `RCM_AI_MODEL`, `RCM_AI_VISION_MODEL`, `RCM_AI_BASE_URL`, and `RCM_AI_API_KEY` apply to whichever provider is **active**.
+
+### Failover chain
+
+Each request walks `active → fallbacks → deterministic fallback`. Set the chain explicitly with `RCM_AI_FALLBACKS` (comma-separated, e.g. `openai,ollama`); if unset, it is auto-derived from every other *configured* provider. If every provider fails, the platform returns a deterministic knowledge-base answer, so chat/extraction never hard-fail. Chat and ingest responses report the `provider` and `model` that produced them.
+
+### Inspect & switch at runtime
+
+```bash
+# List providers, the active one, the resolved chain, and config status.
+curl -s https://rcm.example.com/api/ai
+
+# Switch the active provider (persisted in the DB). Requires the
+# ai.manage capability when the UI auth gate is enabled — send the session cookie.
+curl -s -b cookies.txt -X POST https://rcm.example.com/api/ai \
+  -H "Content-Type: application/json" \
+  -d '{ "provider": "anthropic" }'
+
+# Connectivity test (defaults to the active provider if none given).
+curl -s -X POST https://rcm.example.com/api/ai/test \
+  -H "Content-Type: application/json" \
+  -d '{ "provider": "anthropic" }'
+```
+
+The same controls are exposed in the UI under **Settings → AI Models**.
+
+---
+
+## Deployment & Scale-Out
+
+### Managed database (Postgres / MySQL)
+
+SQLite is the zero-config default; the Prisma data layer is provider-agnostic. To target a managed database:
+
+```bash
+scripts/switch-db.sh postgresql        # or: mysql | sqlite (flips the Prisma provider)
+export DATABASE_URL="postgresql://user:pass@host:5432/rcm"
+bunx prisma generate
+bunx prisma db push                    # or: bunx prisma migrate deploy
+bun run prisma/seed.ts                 # optional demo data
+```
+
+No application code changes are required.
+
+### Shared store for rate limiting (Redis)
+
+By default rate-limit counters are in-memory (per instance). For horizontal scale-out, set `REDIS_URL` to share them across instances (requires the optional `ioredis` package). The Edge middleware remains the per-instance first-line limiter; the Redis-backed limiter is authoritative when configured. **Idempotency keys are already shared via the primary database**, so retries stay safe across instances regardless of Redis.
+
+```bash
+REDIS_URL=redis://localhost:6379
+```
+
+### PHI encryption-at-rest
+
+Set `RCM_ENCRYPTION_KEY` to AES-256-GCM-encrypt sensitive fields (national IDs) at rest. Use 64 hex chars for a raw 32-byte key, or any passphrase (derived via scrypt). Ciphertext is stored as `enc:1:…` and returned **decrypted** through the API; existing plaintext rows pass through unchanged, so enabling encryption is backward compatible.
+
+### Metrics scraping
+
+`GET /api/metrics` returns operational metrics — claim totals and by-status, collection rate, pending escalations, webhook delivery failures, and user count. Add `?format=prometheus` for Prometheus exposition format:
+
+```bash
+curl -s https://rcm.example.com/api/metrics                       # JSON
+curl -s "https://rcm.example.com/api/metrics?format=prometheus"   # Prometheus
+```
+
+Example Prometheus scrape config:
+
+```yaml
+scrape_configs:
+  - job_name: rcm
+    metrics_path: /api/metrics
+    params:
+      format: [prometheus]
+    static_configs:
+      - targets: ["rcm.example.com"]
+```
 
 ---
 

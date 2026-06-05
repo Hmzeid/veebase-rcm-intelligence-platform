@@ -2,7 +2,7 @@
 
 A concise reference of **every** endpoint in the Veebase RCM Intelligence Platform. For full request/response examples, authentication, and webhooks, see [`INTEGRATION.md`](INTEGRATION.md).
 
-- **Internal/UI** endpoints (`/api/*`) back the application UI and require no API key.
+- **Internal/UI** endpoints (`/api/*`) back the application UI and require no API key. When the UI auth gate is enabled, a handful enforce an **RBAC capability** (shown in the **Auth** column, e.g. `ai.manage`, `users.manage`); the rest are open. With auth disabled, callers act as an implicit ADMIN and all capabilities pass.
 - **External v1** endpoints (`/api/v1/*`) require API-key auth (`X-API-Key` or `Authorization: Bearer`) once the gateway is out of bootstrap mode. The **Auth** column shows the required scope.
 
 ## Internal / UI API
@@ -20,14 +20,20 @@ A concise reference of **every** endpoint in the Veebase RCM Intelligence Platfo
 | `GET` | `/api/agents` | none | List the 12 agents and their operational status. |
 | `GET` | `/api/kpis` | none | Revenue-cycle KPI records. |
 | `GET` | `/api/dashboard` | none | Aggregated dashboard data. |
-| `POST` | `/api/chat` | none | AI assistant chat (LLM with deterministic fallback knowledge base). |
-| `POST` | `/api/ingest` | none | Upload a PDF claim for VLM extraction (multipart `file`, `template`). |
+| `POST` | `/api/chat` | none | AI assistant chat (active provider + failover, deterministic fallback). Response reports `provider`/`model`. |
+| `POST` | `/api/ingest` | none | Upload a PDF claim for VLM extraction (multipart `file`, `template`). Response reports `provider`/`model`. |
+| `GET` | `/api/ai` | none | List AI providers, the active one, the failover chain, and per-provider config status. |
+| `POST` | `/api/ai` | `ai.manage` | Switch the active AI provider. Body `{ provider: 'zai'\|'openai'\|'anthropic'\|'ollama' }`. |
+| `POST` | `/api/ai/test` | none | Connectivity test against a provider. Body `{ provider? }` (defaults to active). |
+| `GET` | `/api/metrics` | none | Operational metrics. `?format=prometheus` returns Prometheus exposition; default is JSON. |
+| `GET` | `/api/users` | `users.manage` | List users (passwords never returned) + the role list. |
+| `POST` | `/api/users` | `users.manage` | Create a user. Body `{ email, name, password (≥6), role }`. |
 | `GET` | `/api/openapi.json` | none | OpenAPI 3.0 specification. |
 | `GET` | `/docs` | none | Interactive Swagger UI. |
 | `GET` | `/api` | none | Root hello-world stub. |
-| `POST` | `/api/auth/login` | none | UI auth gate login. Body `{ username, password }` → sets an HttpOnly signed-cookie session. |
+| `POST` | `/api/auth/login` | none | UI auth gate login. Body `{ username\|email, password }` → sets an HttpOnly signed-cookie session carrying the role. |
 | `POST` | `/api/auth/logout` | none | Clear the UI session cookie. |
-| `GET` | `/api/auth/session` | none | Return the current UI session state. |
+| `GET` | `/api/auth/session` | none | Return `{ authEnabled, user, role, capabilities }`. |
 
 ## External v1 API
 

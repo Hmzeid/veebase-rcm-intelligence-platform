@@ -11,6 +11,9 @@ This document describes the system architecture of the **Veebase RCM Intelligenc
 - [Payer Rule Book](#payer-rule-book)
 - [Human-in-the-Loop Governance](#human-in-the-loop-governance)
 - [Event & Webhook Flow](#event--webhook-flow)
+- [AI Provider Layer](#ai-provider-layer)
+- [AuthN / AuthZ](#authn--authz)
+- [Encryption-at-Rest & Shared Store](#encryption-at-rest--shared-store)
 
 ---
 
@@ -41,7 +44,7 @@ flowchart TD
 
 ## Data Model
 
-Nine Prisma models (`prisma/schema.prisma`). SQLite is the default provider; the `DATABASE_URL` can point at Postgres/MySQL (see the README environment-variable notes).
+The Prisma models in `prisma/schema.prisma`. SQLite is the default provider; the data layer is provider-agnostic — `scripts/switch-db.sh sqlite|postgresql|mysql` retargets it at a managed database with no code changes (see the README environment-variable notes). Beyond the claim/agent/webhook core below, three models support auth and reliability: **User** (RBAC), **Setting** (runtime key/value config, e.g. the selected AI provider), and **IdempotencyKey** (cross-instance safe retries).
 
 ```mermaid
 erDiagram
@@ -133,6 +136,9 @@ erDiagram
 | **ApiKey** | Inbound API keys. | `keyHash` (unique SHA-256), `prefix`, `scopes` (JSON), `active`, `lastUsedAt`. |
 | **Webhook** | Outbound subscriptions. | `url`, `secret`, `events` (JSON or `["*"]`), `active`, `description`. |
 | **WebhookDelivery** | Delivery log per attempt. Cascade-deleted with its `Webhook`. Indexed on `webhookId`, `status`. | `event`, `payload`, `status`, `statusCode`, `responseBody`, `attempts`, `deliveredAt`. |
+| **User** | RBAC user accounts for the optional sign-in gate. | `email` (unique), `name`, `passwordHash` (scrypt), `role` (`ADMIN`/`RCM_MANAGER`/`BILLER`/`COMPLIANCE`/`VIEWER`), `active`, `lastLoginAt`. |
+| **Setting** | Runtime key/value app settings persisted in the DB. | `key` (PK), `value` — e.g. `ai.provider` holds the runtime-selected AI provider. |
+| **IdempotencyKey** | Cached responses so external systems can safely retry create requests across instances. | `key` (unique), `scope` (default `claim.create`), `claimId`, `response` (cached JSON). |
 
 ---
 
@@ -314,3 +320,57 @@ sequenceDiagram
 The payload envelope is `{ id, event, timestamp, data }`. Subscribers verify authenticity by recomputing the HMAC over the raw body with their stored secret and comparing it to `X-RCM-Signature`. The delivery request times out after 8 seconds.
 
 See [`INTEGRATION.md`](INTEGRATION.md) for the full webhook subscription flow and a Node.js signature-verification snippet.
+
+---
+
+## AI Provider Layer
+
+The chat (LLM) and PDF-extraction (VLM) features are decoupled from any single vendor by a small **provider router** (`src/lib/ai`). It has three parts:
+
+- **`config.ts`** — builds a `ProviderConfig` for each provider (`zai`, `openai`, `anthropic`, `ollama`) from env, marks whether each is `configured`, and resolves the env-declared primary (`RCM_AI_PROVIDER`) and fallback chain (`RCM_AI_FALLBACKS`).
+- **`providers.ts`** — the per-vendor call implementations (the bundled z.ai SDK, an OpenAI-compatible `fetch`, and the Anthropic Messages API). Each throws on failure so the router can fall through.
+- **`index.ts`** — the router. It reads the **active** provider (runtime-switchable, persisted in the `Setting` table under `ai.provider`, default from env), assembles an ordered, de-duplicated chain `[active, ...fallbacks]`, and tries each configured provider in turn.
+
+```mermaid
+flowchart TD
+    Req["aiChat / aiVision request"] --> Active{active provider<br/>(Setting · ai.provider)}
+    Active --> P1["try active provider"]
+    P1 -- ok --> R["AIResult { text, provider, model }"]
+    P1 -- throws --> P2["try next fallback…"]
+    P2 -- ok --> R
+    P2 -- all fail --> Null["return null →<br/>caller uses deterministic<br/>knowledge-base fallback"]
+```
+
+`aiChat` / `aiVision` return `{ text, provider, model }` on success or `null` when every configured provider fails — callers (`/api/chat`, `/api/ingest`) then use their deterministic domain fallback, so the feature never hard-fails. The control plane (`GET/POST /api/ai`, `POST /api/ai/test`) lists providers, switches the active one (gated by the `ai.manage` capability), and runs connectivity tests.
+
+---
+
+## AuthN / AuthZ
+
+The optional UI auth gate combines **session cookies** with an **RBAC capability matrix**.
+
+- **AuthN.** `POST /api/auth/login` authenticates against the `User` table (matched by email or name, scrypt-hashed passwords via `src/lib/server/passwords.ts`), falling back to the env single-user as an ADMIN when no users exist. On success it issues a signed HttpOnly session cookie carrying `{ user, role }` (`src/lib/server/session.ts`).
+- **AuthZ.** `src/lib/server/rbac.ts` maps each of the five roles to a set of capabilities; routes and the UI check *capabilities*, not roles. `requireSession(request, capability?)` is the guard for internal route handlers — it returns **401** with no valid session and **403** when the role lacks the required capability. When the gate is disabled, the guard returns an implicit ADMIN so the open demo keeps working.
+
+```mermaid
+flowchart TD
+    R["internal route handler"] --> G["requireSession(req, capability?)"]
+    G --> E{auth gate enabled?}
+    E -- no --> A["implicit ADMIN<br/>(open demo)"]
+    E -- yes --> S{valid session cookie?}
+    S -- no --> U["401 Unauthorized"]
+    S -- yes --> C{role has capability?}
+    C -- no --> F["403 Forbidden"]
+    C -- yes --> OK["proceed with { user, role }"]
+```
+
+Capability checks back the AI control plane (`ai.manage`), user management (`users.manage`), and other sensitive routes. `GET /api/auth/session` exposes `{ authEnabled, user, role, capabilities }` so the UI can hide/disable actions the role cannot perform.
+
+---
+
+## Encryption-at-Rest & Shared Store
+
+Two infrastructure concerns are abstracted so they can be enabled per deployment without touching call sites.
+
+- **PHI encryption-at-rest** (`src/lib/server/crypto-field.ts`). When `RCM_ENCRYPTION_KEY` is set, sensitive fields (national IDs) are encrypted with **AES-256-GCM** (random 12-byte IV per value) and stored as `enc:1:<iv>:<tag>:<ciphertext>`. `decryptField` transparently passes through plaintext, so enabling encryption is backward compatible with existing rows; the API returns decrypted values. A `redactPII` helper masks 14-digit IDs in logs.
+- **KV / shared store** (`src/lib/server/kv.ts`). A tiny `KVBackend` abstraction provides `incrWithExpiry` for rate-limit counters. The default backend is **in-memory** (per process); setting `REDIS_URL` swaps in a **Redis** backend (via the dynamically-imported, optional `ioredis`) so counters are shared across instances for horizontal scale-out. Idempotency is handled separately by the `IdempotencyKey` model in the primary database, which is already shared across instances.

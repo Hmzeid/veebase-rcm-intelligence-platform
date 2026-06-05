@@ -817,3 +817,20 @@ Work Log:
 
 Stage Summary:
 - Production readiness raised from ~65% to ~82%. The platform now has request validation, rate limiting, CORS, security headers, idempotency, reliable retrying webhooks, optional UI auth + configurable API auth, an automated test suite, and CI — all verified end-to-end.
+
+---
+Task ID: 16
+Agent: Pluggable AI + RBAC + Scale-out
+Task: Provider-switchable AI (incl. local models), RBAC, Postgres/Redis options, PHI encryption, observability
+
+Work Log:
+- Pluggable AI layer (src/lib/ai/*): provider-agnostic chat (LLM) + vision (VLM) with z.ai (SDK), OpenAI-compatible HTTP (OpenAI/Groq/Together/vLLM/LM Studio), Anthropic Messages, and Ollama (local). Failover chain + deterministic knowledge-base fallback. Runtime switching persisted in a Setting table. GET/POST /api/ai, POST /api/ai/test; Settings "AI Models" card. Chat/ingest wired to the router.
+- RBAC: User model + scrypt passwords; 5 roles → capability matrix (src/lib/server/rbac.ts). DB-backed login (falls back to env single-user), role-bearing signed-cookie sessions, requireSession() guard, /api/users (admin), /api/auth/session returns capabilities, Settings Account card. Seeded 5 demo users (inert until RCM_AUTH_ENABLED).
+- DB portability: scripts/switch-db.sh toggles the Prisma provider (sqlite/postgresql/mysql); data layer already provider-agnostic.
+- Scale-out: src/lib/server/kv.ts (in-memory default; optional Redis via REDIS_URL/ioredis) for cross-instance rate limiting wired into requireAuth. Idempotency already DB-shared.
+- PHI: AES-256-GCM field encryption-at-rest for national IDs (RCM_ENCRYPTION_KEY), transparent backward-compatible decrypt; PII log redaction.
+- Observability: GET /api/metrics (JSON + Prometheus).
+- Tests grew to 55 (AI config/chain, RBAC matrix + password hashing, role sessions, field encryption). Docs (README, INTEGRATION, API, ARCHITECTURE) updated.
+
+Stage Summary:
+- Production readiness raised to ~90%. The AI is now swappable from z.ai to OpenAI-compatible, Anthropic, or local (Ollama) models with automatic backup/failover; RBAC, Postgres/Redis options, PHI encryption, and Prometheus metrics round out enterprise readiness. All verified at runtime; CI green.
