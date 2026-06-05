@@ -66,10 +66,11 @@ export async function POST(request: NextRequest) {
 
     // Try to use LLM SDK for intelligent responses
     try {
-      const sdk = await import('z-ai-web-dev-sdk');
+      // The z-ai SDK ships incomplete types; cast to access the LLM export.
+      const sdk = (await import('z-ai-web-dev-sdk')) as unknown as { LLM?: new () => { chat?: unknown }; default?: { LLM?: new () => { chat?: unknown } } };
       const LLMClass = sdk.LLM || sdk.default?.LLM;
       if (!LLMClass) throw new Error('LLM not available in SDK');
-      const llm = new LLMClass();
+      const llm = new LLMClass() as { chat: (b: unknown) => Promise<{ choices?: { message?: { content?: string } }[]; content?: string }> };
 
       const systemPrompt = `You are the AI Orchestrator Assistant of the Veebase RCM Intelligence Platform — a provider-side, multi-agent Revenue Cycle Management system deployed for Egyptian hospitals and clinics.
 

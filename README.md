@@ -10,6 +10,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-DB-003b57?logo=sqlite)
 ![Bun](https://img.shields.io/badge/Bun-runtime-f9f1e1?logo=bun)
 ![FHIR](https://img.shields.io/badge/HL7%20FHIR-R4-e23237)
+![CI](https://github.com/Hmzeid/veebase-rcm-intelligence-platform/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 Veebase orchestrates **12 specialized AI agents** across the revenue cycle, driving each claim through a deterministic, explainable pipeline — from eligibility verification to payment posting — while enforcing a **Human-in-the-Loop (HITL)** governance model so that nothing prohibited by policy is ever auto-executed. Every state change is written to an immutable audit trail, and the platform exposes a full **inbound + outbound integration API** (native JSON, HL7 FHIR R4, and signed webhooks).
@@ -176,6 +177,8 @@ Defined in `package.json`:
 | `build` | `next build` (+ copies static assets into `.next/standalone`) | Production standalone build. |
 | `start` | `bun .next/standalone/server.js` | Run the standalone production server. |
 | `lint` | `eslint .` | Lint the codebase. |
+| `typecheck` | `tsc --noEmit` | Type-check the codebase (build errors are **not** ignored). |
+| `test` | `bun test` | Run the Bun test suite (30 tests: engine, validation, sessions). |
 | `db:push` | `prisma db push` | Sync the Prisma schema to the database. |
 | `db:generate` | `prisma generate` | Generate the Prisma client. |
 | `db:migrate` | `prisma migrate dev` | Create/apply a dev migration. |
@@ -190,7 +193,15 @@ Defined in `package.json`:
 |----------|---------|-------------|
 | `DATABASE_URL` | `file:./db/custom.db` | Database connection. A `file:` SQLite URL is resolved to an **absolute** path at runtime (`src/lib/db.ts`) so it works identically in dev, production, and the standalone build. Set a non-`file:` URL (e.g. `postgresql://…`, `mysql://…`) to point at a managed database with no code changes. |
 | `RCM_DATABASE_FILE` | — | Optional override for the SQLite file location (absolute path preferred). Takes precedence over the `file:` portion of `DATABASE_URL`. |
-| `RCM_MASTER_KEY` | — | Optional trusted server-to-server key. When set, it is **always** accepted on `/api/v1` routes and carries `read`, `write`, and `admin` scopes. |
+| `RCM_MASTER_KEY` | — | Optional trusted server-to-server key. When set, it is **always** accepted on `/api/v1` routes and carries `read`, `write`, and `admin` scopes. Also used to provision the first key when API auth is required. |
+| `RCM_REQUIRE_API_AUTH` | `false` | When `true`, an API key is required on `/api/v1` even when no keys are provisioned yet (disables open bootstrap mode). Provision the first key with `RCM_MASTER_KEY`. |
+| `RCM_RATE_LIMIT` | `240` | Max `/api/v1` requests allowed per window, per API key (or client IP). |
+| `RCM_RATE_WINDOW_MS` | `60000` | Rate-limit window length in milliseconds (default 60s). |
+| `RCM_CORS_ORIGINS` | `*` | Comma-separated CORS allow-list for `/api/v1` (with OPTIONS preflight handling). |
+| `RCM_WEBHOOK_MAX_ATTEMPTS` | `3` | Max delivery attempts for outbound webhooks (bounded exponential backoff). |
+| `RCM_UI_USER` | `admin` | Username for the optional UI auth gate (used when `RCM_UI_PASSWORD` is set). |
+| `RCM_UI_PASSWORD` | — | When set, the dashboard requires login. Unset = app is open (default). |
+| `RCM_SESSION_SECRET` | — | Secret used to sign the HttpOnly UI session cookie. |
 
 > **Note:** SQLite is the default and the schema's `datasource` provider. To use Postgres/MySQL you must also update the `provider` in `prisma/schema.prisma` and re-run `prisma generate` / `prisma db push`.
 
@@ -261,6 +272,18 @@ See the full guide in [`docs/INTEGRATION.md`](docs/INTEGRATION.md) and the endpo
 - **API-key scopes** — `read`, `write`, `admin`. Key secrets are stored only as SHA-256 hashes and shown in plaintext exactly once at creation. Webhook signing secrets are likewise returned once.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#human-in-the-loop-governance) for the complete governance model.
+
+### Production Hardening
+
+- **Request validation (Zod)** — every `/api/v1` write endpoint validates its body and returns **HTTP 422** with `{ error: "Validation failed", issues: [{ path, message }] }` on bad input. Claim create accepts a single object, a raw array, or `{ claims: [...] }`.
+- **Rate limiting** — per API key (or client IP) token bucket on `/api/v1`, default **240 requests / 60s** (configurable via `RCM_RATE_LIMIT` / `RCM_RATE_WINDOW_MS`). On exceed returns **429** with `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`. All API responses carry an `X-Request-Id` correlation header.
+- **CORS** — configurable allow-list for `/api/v1` via `RCM_CORS_ORIGINS` (comma-separated, default `*`), with proper OPTIONS preflight handling.
+- **Security headers** — applied globally via `next.config`: `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy`.
+- **Idempotency keys** — single claim create (`POST /api/v1/claims`) honors an `Idempotency-Key` request header; repeating the same key (scoped per API key) returns the original claim instead of creating a duplicate.
+- **Webhook reliability** — deliveries retry with bounded exponential backoff (default 3 attempts, `RCM_WEBHOOK_MAX_ATTEMPTS`) and run in the background so they never block the API response. Inspect recent attempts via `GET /api/v1/webhooks/{id}/deliveries` and send a signed `ping` via `POST /api/v1/webhooks/{id}/test`.
+- **Configurable API auth** — set `RCM_REQUIRE_API_AUTH=true` to require an API key on `/api/v1` even before any key is provisioned (disables open bootstrap mode); provision the first key with `RCM_MASTER_KEY`.
+- **Optional UI auth gate** — when `RCM_UI_PASSWORD` is set, the dashboard requires login (`/login` page, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/session`, HttpOnly signed-cookie session). Unset = open by default.
+- **Automated tests + CI** — the codebase type-checks cleanly (`ignoreBuildErrors` is off), ships a Bun test suite (`bun test`, 30 tests), and a GitHub Actions workflow (`.github/workflows/ci.yml`) runs install → prisma generate → db push → lint → typecheck → test → build.
 
 ---
 

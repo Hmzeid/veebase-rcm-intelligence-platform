@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/server/auth';
 import { computeReadiness, computeDenialRisk, getPayerRule, type EngineClaim } from '@/lib/rcm-engine';
+import { parseBody, EligibilitySchema } from '@/lib/validation';
 import type { PayerType } from '@/lib/rcm-types';
 
 export const dynamic = 'force-dynamic';
@@ -14,9 +15,11 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth(request, 'read');
   if ('error' in auth) return auth.error;
 
-  const body = await request.json().catch(() => ({}));
-  const payerType = (body.payerType ?? 'PRIVATE') as PayerType;
-  const totalAmount = Number(body.totalAmount) || 0;
+  const parsed = await parseBody(request, EligibilitySchema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
+  const payerType = body.payerType as PayerType;
+  const totalAmount = body.totalAmount;
   const rule = getPayerRule(payerType);
   const priorAuthRequired = totalAmount >= rule.priorAuthThreshold && payerType !== 'SELF_PAY';
 

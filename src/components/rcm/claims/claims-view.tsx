@@ -790,13 +790,13 @@ function OutputSummary({ output, claimAmount }: { output: AgentOutput; claimAmou
             {authStatus?.replace('_', ' ') ?? 'N/A'}
           </Badge>
         </div>
-        {out.authNumber && (
+        {!!out.authNumber && (
           <div>
             <p className="text-[10px] text-muted-foreground">Auth #</p>
             <p className="text-xs font-mono font-semibold">{out.authNumber as string}</p>
           </div>
         )}
-        {out.denialCode && (
+        {!!out.denialCode && (
           <div>
             <p className="text-[10px] text-muted-foreground">Denial Code</p>
             <p className="text-xs font-semibold text-red-600">{out.denialCode as string}</p>

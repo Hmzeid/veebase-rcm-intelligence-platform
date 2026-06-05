@@ -41,6 +41,8 @@ export function SidebarNav() {
   const { activeView, setActiveView, escalations, claims } = useRCMStore();
   const { t, isRTL, locale } = useI18n();
   const [mounted, setMounted] = useState(false);
+  // One-time mount flag to avoid SSR/CSR hydration mismatch on locale/theme.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
   const pendingEscalations = escalations.filter((e) => e.status === 'PENDING').length;
   const activeClaims = claims.filter(
@@ -161,6 +163,8 @@ export function MobileNav() {
   const { activeView, setActiveView, escalations } = useRCMStore();
   const { t } = useI18n();
   const [mounted, setMounted] = useState(false);
+  // One-time mount flag to avoid SSR/CSR hydration mismatch on locale/theme.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
   const pendingEscalations = escalations.filter((e) => e.status === 'PENDING').length;
 

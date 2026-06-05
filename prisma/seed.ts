@@ -22,7 +22,8 @@ async function main() {
   await prisma.webhookDelivery.deleteMany({});
   await prisma.webhook.deleteMany({});
   await prisma.apiKey.deleteMany({});
-  console.log('  ✓ Processing events, webhooks & API keys cleared');
+  await prisma.idempotencyKey.deleteMany({});
+  console.log('  ✓ Processing events, webhooks, API keys & idempotency cleared');
 
   // Seed Agents
   console.log('\n📋 Seeding agents...');

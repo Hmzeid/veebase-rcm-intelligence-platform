@@ -156,6 +156,16 @@ model Webhook {
   deliveries  WebhookDelivery[]
 }
 
+/// Idempotency keys so external systems can safely retry create requests.
+model IdempotencyKey {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  scope     String   @default("claim.create")
+  claimId   String?
+  response  String   @default("{}") // cached JSON response
+  createdAt DateTime @default(now())
+}
+
 /// Delivery log for each webhook attempt (for retries and observability).
 model WebhookDelivery {
   id           String   @id @default(cuid())

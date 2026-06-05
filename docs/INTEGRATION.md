@@ -7,8 +7,10 @@ Throughout, the base URL placeholder is **`https://rcm.example.com`**. Replace i
 ## Table of Contents
 
 - [Authentication & Bootstrap](#authentication--bootstrap)
+- [Authentication Modes](#authentication-modes)
 - [Scopes](#scopes)
 - [Conventions](#conventions)
+- [Reliability & Limits](#reliability--limits)
 - [API Keys](#api-keys)
 - [Claims](#claims)
   - [Create a claim](#create-a-claim)
@@ -60,6 +62,32 @@ flowchart TD
 
 ---
 
+## Authentication Modes
+
+### API auth (`/api/v1`)
+
+By default, `/api/v1` runs in **open bootstrap mode** until the first key is provisioned (see above). To require a key from the very first request — even before any key exists — start the server with **`RCM_REQUIRE_API_AUTH=true`**. This disables the open bootstrap path, so unauthenticated requests get **401**. Provision the first key using the trusted **`RCM_MASTER_KEY`** value (always accepted, `read`+`write`+`admin`):
+
+```bash
+curl -X POST https://rcm.example.com/api/v1/keys \
+  -H "X-API-Key: $RCM_MASTER_KEY" -H "Content-Type: application/json" \
+  -d '{ "name": "EHR Integration", "scopes": ["read","write"] }'
+```
+
+### Optional UI auth gate
+
+The dashboard is **open by default**. Set **`RCM_UI_PASSWORD`** (with optional **`RCM_UI_USER`**, default `admin`, and **`RCM_SESSION_SECRET`** to sign the session cookie) to require login. The gate is enforced for the UI only; `/api/v1` remains protected separately by API keys.
+
+| Method | Path | Body | Purpose |
+|--------|------|------|---------|
+| `POST` | `/api/auth/login` | `{ username, password }` | On success, sets an HttpOnly signed-cookie session. |
+| `POST` | `/api/auth/logout` | — | Clears the session cookie. |
+| `GET` | `/api/auth/session` | — | Returns the current session state. |
+
+A `/login` page is served for interactive sign-in. **Public paths** that bypass the gate even when a password is set: `/login`, `/api/auth/*`, `/api/v1/*` (key-protected separately), `/api/health`, `/api/openapi.json`, and `/docs`.
+
+---
+
 ## Scopes
 
 | Scope | Grants |
@@ -79,6 +107,64 @@ A key created with no scopes defaults to `["read","write"]`. A missing required 
 - `payerType` is one of `NHIA`, `PRIVATE`, `SELF_PAY`.
 - Claim `status` is one of `ELIGIBILITY`, `PRIOR_AUTH`, `CHARGE_CAPTURE`, `CODING`, `SCRUBBING`, `SUBMITTED`, `ADJUDICATION`, `REMITTANCE`, `DENIED`, `PAID`, `CLOSED`, `WRITTEN_OFF`.
 - A claim can be addressed by its `id` **or** its `claimNumber` in path parameters.
+
+---
+
+## Reliability & Limits
+
+### Request validation (422)
+
+All `/api/v1` **write** endpoints validate their request body (Zod). On invalid input they return **HTTP 422** with a structured list of issues:
+
+```json
+{
+  "error": "Validation failed",
+  "issues": [
+    { "path": "patientName", "message": "Required" },
+    { "path": "totalAmount", "message": "Expected number, received string" }
+  ]
+}
+```
+
+Claim create accepts a single object, a raw array, or `{ "claims": [...] }` — all three shapes are validated the same way.
+
+### Rate limiting (429)
+
+`/api/v1` enforces a per-API-key (or per-client-IP) token bucket. The default is **240 requests / 60s**, configurable via `RCM_RATE_LIMIT` and `RCM_RATE_WINDOW_MS`. Every API response includes an **`X-Request-Id`** correlation header and the current rate-limit headers; when the limit is exceeded the request is rejected with **429**.
+
+| Header | On | Meaning |
+|--------|----|---------|
+| `X-Request-Id` | all responses | Correlation id for the request. |
+| `X-RateLimit-Limit` | all `/api/v1` responses | Max requests per window. |
+| `X-RateLimit-Remaining` | all `/api/v1` responses | Requests left in the current window. |
+| `X-RateLimit-Reset` | all `/api/v1` responses | When the window resets. |
+| `Retry-After` | `429` only | Seconds to wait before retrying. |
+
+### CORS
+
+Cross-origin access to `/api/v1` is governed by **`RCM_CORS_ORIGINS`** — a comma-separated allow-list (default `*`). OPTIONS preflight requests are answered with the appropriate CORS headers.
+
+### Idempotency keys
+
+To make claim creation safe to retry, send an **`Idempotency-Key`** header on a single `POST /api/v1/claims`. Repeating the **same** key (scoped per API key) returns the **original** claim instead of creating a duplicate.
+
+```bash
+# First call — creates the claim.
+curl -X POST https://rcm.example.com/api/v1/claims \
+  -H "X-API-Key: $RCM_KEY" -H "Content-Type: application/json" \
+  -H "Idempotency-Key: claim-2026-05-01-ahmed-8500" \
+  -d '{ "patientName": "Ahmed Mohamed Hassan", "payerType": "NHIA", "totalAmount": 8500 }'
+
+# Same key again — returns the SAME claim, no duplicate created.
+curl -X POST https://rcm.example.com/api/v1/claims \
+  -H "X-API-Key: $RCM_KEY" -H "Content-Type: application/json" \
+  -H "Idempotency-Key: claim-2026-05-01-ahmed-8500" \
+  -d '{ "patientName": "Ahmed Mohamed Hassan", "payerType": "NHIA", "totalAmount": 8500 }'
+```
+
+### Webhook reliability
+
+Outbound deliveries **retry with bounded exponential backoff** (default 3 attempts, configurable via `RCM_WEBHOOK_MAX_ATTEMPTS`) and run **in the background**, so they never block the API response. Each delivered request also carries an **`X-RCM-Attempt`** header. See [Webhooks](#webhooks) for the test and delivery-log endpoints.
 
 ---
 
@@ -484,6 +570,7 @@ Content-Type: application/json
 X-RCM-Event: claim.denied
 X-RCM-Signature: sha256=<hex hmac of the raw body>
 X-RCM-Delivery: 5c2e1f8a-...
+X-RCM-Attempt: 1
 
 {
   "id": "5c2e1f8a-...",
@@ -493,7 +580,7 @@ X-RCM-Delivery: 5c2e1f8a-...
 }
 ```
 
-Each delivery attempt is logged server-side (`WebhookDelivery`) with status and response code; the request times out after 8 seconds.
+Deliveries run **in the background** (they never block the API response) and **retry with bounded exponential backoff** — by default **3 attempts** (configurable via `RCM_WEBHOOK_MAX_ATTEMPTS`). Each attempt is logged server-side (`WebhookDelivery`) with status and response code, carries an `X-RCM-Attempt` header, and times out after 8 seconds. Inspect attempts via [the deliveries endpoint](#test--inspect-deliveries) below.
 
 ### Manage webhooks
 
@@ -512,6 +599,31 @@ curl -X PATCH https://rcm.example.com/api/v1/webhooks/clx... \
 
 ```bash
 curl -X DELETE https://rcm.example.com/api/v1/webhooks/clx... -H "X-API-Key: $RCM_KEY"
+```
+
+### Test & inspect deliveries
+
+`POST /api/v1/webhooks/{id}/test` — requires `write`. Sends a signed **`ping`** event to the subscription so you can verify connectivity and signature handling end to end.
+
+```bash
+curl -X POST https://rcm.example.com/api/v1/webhooks/clx.../test -H "X-API-Key: $RCM_KEY"
+```
+
+`GET /api/v1/webhooks/{id}/deliveries` — requires `read`. Lists the most recent delivery attempts for the subscription, including `status`, `statusCode`, and the number of `attempts`.
+
+```bash
+curl https://rcm.example.com/api/v1/webhooks/clx.../deliveries -H "X-API-Key: $RCM_KEY"
+```
+
+```json
+{
+  "deliveries": [
+    { "id": "5c2e1f8a-...", "event": "claim.denied", "status": "SUCCESS",
+      "statusCode": 200, "attempts": 1, "at": "2026-06-05T10:05:00.000Z" },
+    { "id": "9a1d4b22-...", "event": "ping", "status": "FAILED",
+      "statusCode": 500, "attempts": 3, "at": "2026-06-05T10:04:10.000Z" }
+  ]
+}
 ```
 
 ### Verifying webhook signatures
@@ -599,11 +711,13 @@ Along the way the platform persists each agent run (`ClaimEvent`), appends to th
 |-------:|---------|---------------|
 | `200` | OK | Successful read/update/process. |
 | `201` | Created | Claim(s), key, or webhook created. |
-| `400` | Bad Request | Invalid JSON; missing `patientName`/numeric `totalAmount`; missing `url`/`name`; non-`Claim` FHIR body; entire batch invalid. |
+| `400` | Bad Request | Invalid JSON; non-`Claim` FHIR body; entire batch invalid. (Field-level validation failures return **422** instead — see below.) |
 | `401` | Unauthorized | Auth enforced and no/invalid API key. Response carries `WWW-Authenticate: Bearer`. |
 | `403` | Forbidden | Valid key, but it lacks the required scope. |
 | `404` | Not Found | Claim or webhook does not exist. |
 | `409` | Conflict | Invalid escalation state transition (internal `/api/escalations`). |
+| `422` | Unprocessable Entity | Request body failed validation. Body is `{ error: "Validation failed", issues: [{ path, message }] }`. |
+| `429` | Too Many Requests | Rate limit exceeded. Carries `Retry-After` plus `X-RateLimit-*` headers. |
 | `500` | Server Error | Unexpected failure. |
 | `503` | Service Unavailable | `/api/health` when the database is unreachable. |
 
@@ -625,6 +739,7 @@ curl https://rcm.example.com/api/openapi.json
 
 ## Rate Limiting & Notes
 
-- The platform does not currently impose application-level rate limits; deploy behind your own gateway/reverse proxy (e.g. the bundled Caddy) if you need throttling.
-- Webhook delivery is fire-and-forget with an 8-second timeout per attempt; design your receiver to be idempotent (use `X-RCM-Delivery` for de-duplication).
+- `/api/v1` enforces an application-level rate limit (default **240 requests / 60s** per API key or client IP; configurable via `RCM_RATE_LIMIT` / `RCM_RATE_WINDOW_MS`). Responses include `X-RateLimit-*` headers and an `X-Request-Id`; exceeding the limit returns **429** with `Retry-After`. See [Reliability & Limits](#reliability--limits). You may still layer your own gateway/reverse proxy (e.g. the bundled Caddy) for additional throttling.
+- Webhook delivery retries with bounded exponential backoff (default 3 attempts, `RCM_WEBHOOK_MAX_ATTEMPTS`), runs in the background, and times out after 8 seconds per attempt; design your receiver to be idempotent (use `X-RCM-Delivery` for de-duplication, and `X-RCM-Attempt` to detect retries).
+- For safe-to-retry claim creation, send an `Idempotency-Key` header (see [Idempotency keys](#idempotency-keys)).
 - Key secrets and webhook signing secrets are shown **once** — store them immediately.

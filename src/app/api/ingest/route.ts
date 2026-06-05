@@ -22,8 +22,9 @@ export async function POST(request: NextRequest) {
 
     // Try VLM extraction
     try {
+      // The z-ai SDK's vision body type is incomplete; cast the client to call createVision.
       const ZAI = (await import('z-ai-web-dev-sdk')).default;
-      const zai = await ZAI.create();
+      const zai = (await ZAI.create()) as unknown as { chat: { completions: { createVision: (b: unknown) => Promise<{ choices?: { message?: { content?: string } }[] }> } } };
 
       const templateInfo =
         template !== 'auto' ? `The document is from the "${template}" hospital system. ` : '';

@@ -52,8 +52,9 @@ export async function authenticate(req: NextRequest): Promise<AuthContext | null
     keyCount = 0;
   }
 
-  if (keyCount === 0) {
-    // Open bootstrap mode — no keys provisioned yet.
+  if (keyCount === 0 && process.env.RCM_REQUIRE_API_AUTH !== 'true') {
+    // Open bootstrap mode — no keys provisioned yet. Disable by setting
+    // RCM_REQUIRE_API_AUTH=true (then provision the first key with RCM_MASTER_KEY).
     return { keyId: 'bootstrap', name: 'bootstrap', scopes: ['read', 'write'] };
   }
 

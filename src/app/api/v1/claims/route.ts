@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/server/auth';
-import { listClaims, createClaim, type CreateClaimInput } from '@/lib/server/claim-service';
+import { listClaims, createClaim } from '@/lib/server/claim-service';
+import { parseBody, ClaimCreateSchema, normaliseClaimCreate } from '@/lib/validation';
+import { withIdempotency } from '@/lib/server/idempotency';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,46 +28,36 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/v1/claims — create one claim or a batch.
- * Body: a single claim object OR { claims: [...] } for batch ingestion.
+ * Body: a single claim object, a raw array, or { claims: [...] }.
+ * Supports an `Idempotency-Key` header for safe retries on single creates.
  */
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request, 'write');
   if ('error' in auth) return auth.error;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  const parsed = await parseBody(request, ClaimCreateSchema);
+  if (!parsed.ok) return parsed.response;
+
+  const { items, isBatch } = normaliseClaimCreate(parsed.data);
+
+  if (!isBatch) {
+    const claim = await withIdempotency(request, auth.ctx.keyId, () =>
+      createClaim({ ...items[0], source: 'api' }, auth.ctx.name),
+    );
+    return NextResponse.json({ claim }, { status: 201 });
   }
 
-  const batch: CreateClaimInput[] | null = Array.isArray(body)
-    ? (body as CreateClaimInput[])
-    : body && typeof body === 'object' && Array.isArray((body as { claims?: unknown }).claims)
-      ? ((body as { claims: CreateClaimInput[] }).claims)
-      : null;
-
-  if (batch) {
-    const created: Awaited<ReturnType<typeof createClaim>>[] = [];
-    const errors: { index: number; error: string }[] = [];
-    for (const [i, item] of batch.entries()) {
-      if (!item?.patientName || typeof item.totalAmount !== 'number') {
-        errors.push({ index: i, error: 'patientName and numeric totalAmount are required' });
-        continue;
-      }
-      try {
-        created.push(await createClaim({ ...item, source: 'api-batch' }, auth.ctx.name));
-      } catch (e) {
-        errors.push({ index: i, error: e instanceof Error ? e.message : 'create failed' });
-      }
+  const created: Awaited<ReturnType<typeof createClaim>>[] = [];
+  const errors: { index: number; error: string }[] = [];
+  for (const [i, item] of items.entries()) {
+    try {
+      created.push(await createClaim({ ...item, source: 'api-batch' }, auth.ctx.name));
+    } catch (e) {
+      errors.push({ index: i, error: e instanceof Error ? e.message : 'create failed' });
     }
-    return NextResponse.json({ created, createdCount: created.length, errors }, { status: errors.length && !created.length ? 400 : 201 });
   }
-
-  const single = body as CreateClaimInput;
-  if (!single?.patientName || typeof single.totalAmount !== 'number') {
-    return NextResponse.json({ error: 'patientName and numeric totalAmount are required' }, { status: 400 });
-  }
-  const claim = await createClaim({ ...single, source: 'api' }, auth.ctx.name);
-  return NextResponse.json({ claim }, { status: 201 });
+  return NextResponse.json(
+    { created, createdCount: created.length, errors },
+    { status: errors.length && !created.length ? 400 : 201 },
+  );
 }

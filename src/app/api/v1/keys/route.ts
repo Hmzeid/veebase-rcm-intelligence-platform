@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, createApiKey } from '@/lib/server/auth';
+import { parseBody, ApiKeySchema } from '@/lib/validation';
 import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -33,10 +34,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request, 'write');
   if ('error' in auth) return auth.error;
-  const body = await request.json().catch(() => ({}));
-  if (!body.name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
-  const scopes = Array.isArray(body.scopes) && body.scopes.length ? body.scopes : ['read', 'write'];
-  const key = await createApiKey(body.name, scopes, auth.ctx.name);
+  const parsed = await parseBody(request, ApiKeySchema);
+  if (!parsed.ok) return parsed.response;
+  const scopes = parsed.data.scopes && parsed.data.scopes.length ? parsed.data.scopes : ['read', 'write'];
+  const key = await createApiKey(parsed.data.name, scopes, auth.ctx.name);
   return NextResponse.json(
     { ...key, note: 'Store this secret securely — it will not be shown again. Send it as the X-API-Key header.' },
     { status: 201 },

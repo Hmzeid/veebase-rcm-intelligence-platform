@@ -25,6 +25,9 @@ A concise reference of **every** endpoint in the Veebase RCM Intelligence Platfo
 | `GET` | `/api/openapi.json` | none | OpenAPI 3.0 specification. |
 | `GET` | `/docs` | none | Interactive Swagger UI. |
 | `GET` | `/api` | none | Root hello-world stub. |
+| `POST` | `/api/auth/login` | none | UI auth gate login. Body `{ username, password }` → sets an HttpOnly signed-cookie session. |
+| `POST` | `/api/auth/logout` | none | Clear the UI session cookie. |
+| `GET` | `/api/auth/session` | none | Return the current UI session state. |
 
 ## External v1 API
 
@@ -42,8 +45,12 @@ A concise reference of **every** endpoint in the Veebase RCM Intelligence Platfo
 | `POST` | `/api/v1/webhooks` | `write` | Register a webhook (returns signing secret once). |
 | `PATCH` | `/api/v1/webhooks/{id}` | `write` | Enable/disable or update a webhook's events/description. |
 | `DELETE` | `/api/v1/webhooks/{id}` | `write` | Remove a webhook subscription. |
+| `POST` | `/api/v1/webhooks/{id}/test` | `write` | Send a signed `ping` event to the webhook. |
+| `GET` | `/api/v1/webhooks/{id}/deliveries` | `read` | List recent delivery attempts (`status`, `statusCode`, `attempts`). |
 | `GET` | `/api/v1/keys` | `read` | List API keys (secrets never returned). |
 | `POST` | `/api/v1/keys` | `write` | Provision a new API key (returns secret once). First key works under bootstrap mode. |
+
+> **Headers on `/api/v1`:** all responses include an `X-Request-Id` correlation header plus rate-limit headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`; a `Retry-After` is added on **429**). Single claim create (`POST /api/v1/claims`) honors an `Idempotency-Key` request header — repeating a key (scoped per API key) returns the original claim. See [`INTEGRATION.md`](INTEGRATION.md#reliability--limits).
 
 ## Webhook Events
 

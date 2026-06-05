@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/server/auth';
+import { parseBody, WebhookSchema } from '@/lib/validation';
 import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -30,16 +31,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request, 'write');
   if ('error' in auth) return auth.error;
-  const body = await request.json().catch(() => ({}));
-  if (!body.url || typeof body.url !== 'string') {
-    return NextResponse.json({ error: 'url is required' }, { status: 400 });
-  }
+  const parsed = await parseBody(request, WebhookSchema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const secret = 'whsec_' + crypto.randomBytes(20).toString('hex');
   const hook = await db.webhook.create({
     data: {
       url: body.url,
       secret,
-      events: JSON.stringify(Array.isArray(body.events) && body.events.length ? body.events : ['*']),
+      events: JSON.stringify(body.events && body.events.length ? body.events : ['*']),
       description: body.description ?? '',
     },
   });

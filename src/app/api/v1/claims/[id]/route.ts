@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/server/auth';
 import { getClaim, updateClaim } from '@/lib/server/claim-service';
+import { parseBody, ClaimPatchSchema } from '@/lib/validation';
 import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -36,8 +37,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const auth = await requireAuth(request, 'write');
   if ('error' in auth) return auth.error;
   const { id } = await params;
-  const body = await request.json().catch(() => ({}));
-  const claim = await updateClaim(id, body, auth.ctx.name);
+  const parsed = await parseBody(request, ClaimPatchSchema);
+  if (!parsed.ok) return parsed.response;
+  const claim = await updateClaim(id, parsed.data, auth.ctx.name);
   if (!claim) return NextResponse.json({ error: 'Claim not found' }, { status: 404 });
   return NextResponse.json({ claim });
 }
