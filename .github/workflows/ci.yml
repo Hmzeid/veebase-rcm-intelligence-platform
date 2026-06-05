@@ -37,7 +37,7 @@ jobs:
         run: bun run typecheck
 
       - name: Unit tests
-        run: bun test test/
+        run: bun test tests/
 
       - name: Build
         run: bun run build
