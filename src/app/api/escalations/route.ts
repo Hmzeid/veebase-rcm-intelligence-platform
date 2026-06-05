@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { writeAudit } from '@/lib/server/audit';
 import { emitEvent } from '@/lib/server/webhooks';
+import { requireSession } from '@/lib/server/require-session';
 import type { EscalationRecord, EscalationStatus } from '@/lib/rcm-types';
 
 export const dynamic = 'force-dynamic';
@@ -77,6 +78,14 @@ export async function PATCH(request: NextRequest) {
 
     const existing = await db.escalation.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: `Escalation "${id}" not found` }, { status: 404 });
+
+    // Capability check — resolving a high-severity (L4+) escalation needs the
+    // dedicated capability (compliance/manager/admin only).
+    const needed = action === 'acknowledge'
+      ? 'escalation.acknowledge'
+      : existing.level >= 4 ? 'escalation.resolve.l4' : 'escalation.resolve';
+    const auth = await requireSession(request, needed);
+    if ('error' in auth) return auth.error;
 
     if (action === 'acknowledge' && existing.status !== 'PENDING') {
       return NextResponse.json({ error: 'Only PENDING escalations can be acknowledged' }, { status: 409 });

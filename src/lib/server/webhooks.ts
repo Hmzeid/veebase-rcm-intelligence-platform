@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { db } from '@/lib/db';
+import { checkOutboundUrl } from './ssrf';
 
 /**
  * Event names emitted by the platform. External systems subscribe to these via
@@ -43,6 +44,15 @@ async function deliverWithRetry(hook: Hook, event: RcmEvent, payload: string, de
   let status = 'FAILED';
   let statusCode: number | null = null;
   let responseBody: string | null = null;
+
+  // Re-validate at delivery time (DNS rebinding / rows created before the guard).
+  const safe = await checkOutboundUrl(hook.url);
+  if (!safe.ok) {
+    await db.webhookDelivery.create({
+      data: { webhookId: hook.id, event, payload, status: 'FAILED', responseBody: `blocked: ${safe.reason}`, attempts: 0 },
+    }).catch(() => {});
+    return;
+  }
 
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     if (BACKOFF_MS[i]) await sleep(BACKOFF_MS[i]);

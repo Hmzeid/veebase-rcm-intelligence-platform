@@ -36,15 +36,16 @@ export function encryptField(plain: string | null | undefined): string {
 export function decryptField(stored: string | null | undefined): string {
   if (stored == null || stored === '') return stored ?? '';
   if (!stored.startsWith(PREFIX)) return stored; // plaintext / legacy
-  if (!encryptionEnabled()) return stored; // cannot decrypt without the key
-  try {
-    const [, , ivHex, tagHex, ctHex] = stored.split(':');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key(), Buffer.from(ivHex, 'hex'));
-    decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
-    return Buffer.concat([decipher.update(Buffer.from(ctHex, 'hex')), decipher.final()]).toString('utf8');
-  } catch {
-    return stored;
+  if (!encryptionEnabled()) {
+    // Encrypted value but no key configured — fail loudly rather than leak the
+    // ciphertext as if it were the plaintext value.
+    throw new Error('Encrypted field encountered but RCM_ENCRYPTION_KEY is not set');
   }
+  const [, , ivHex, tagHex, ctHex] = stored.split(':');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key(), Buffer.from(ivHex, 'hex'));
+  decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+  // GCM .final() throws on tag mismatch (tampering / wrong key) — let it propagate.
+  return Buffer.concat([decipher.update(Buffer.from(ctHex, 'hex')), decipher.final()]).toString('utf8');
 }
 
 /** Redact an Egyptian-national-ID-like 14-digit run for safe logging. */

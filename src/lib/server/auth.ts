@@ -15,6 +15,24 @@ export function hashKey(secret: string): string {
   return crypto.createHash('sha256').update(secret).digest('hex');
 }
 
+/** Length-safe constant-time string comparison (never throws). */
+function constantTimeEquals(a: string, b: string): boolean {
+  const da = crypto.createHash('sha256').update(a).digest();
+  const db_ = crypto.createHash('sha256').update(b).digest();
+  return crypto.timingSafeEqual(da, db_);
+}
+
+/**
+ * Whether keyless "bootstrap" access is permitted. Explicit env wins; otherwise
+ * open only outside production (fail closed in production).
+ */
+function bootstrapAllowed(): boolean {
+  const flag = process.env.RCM_REQUIRE_API_AUTH;
+  if (flag === 'true') return false;
+  if (flag === 'false') return true;
+  return process.env.NODE_ENV !== 'production';
+}
+
 /** Generate a new API key. Returns the plaintext secret ONCE (not stored). */
 export async function createApiKey(name: string, scopes: string[] = ['read', 'write'], createdBy = 'system') {
   const secret = PREFIX + crypto.randomBytes(24).toString('hex');
@@ -40,9 +58,11 @@ export async function authenticate(req: NextRequest): Promise<AuthContext | null
   const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? '';
   const provided = header || bearer;
 
-  // Master key escape hatch for trusted server-to-server callers.
+  // Master key escape hatch for trusted server-to-server callers. Compare
+  // fixed-length SHA-256 digests so timingSafeEqual never throws on a length
+  // mismatch (which would otherwise 500 every request once a master key is set).
   const master = process.env.RCM_MASTER_KEY?.trim();
-  if (master && provided && crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(master))) {
+  if (master && provided && constantTimeEquals(provided, master)) {
     return { keyId: 'master', name: 'master', scopes: ['read', 'write', 'admin'] };
   }
 
@@ -53,9 +73,10 @@ export async function authenticate(req: NextRequest): Promise<AuthContext | null
     keyCount = 0;
   }
 
-  if (keyCount === 0 && process.env.RCM_REQUIRE_API_AUTH !== 'true') {
-    // Open bootstrap mode — no keys provisioned yet. Disable by setting
-    // RCM_REQUIRE_API_AUTH=true (then provision the first key with RCM_MASTER_KEY).
+  // Bootstrap (open) mode is allowed only outside production. In production it
+  // must be explicitly opted into with RCM_REQUIRE_API_AUTH=false — fail closed
+  // by default so a deploy-and-forget can't expose the API with zero keys.
+  if (keyCount === 0 && bootstrapAllowed()) {
     return { keyId: 'bootstrap', name: 'bootstrap', scopes: ['read', 'write'] };
   }
 

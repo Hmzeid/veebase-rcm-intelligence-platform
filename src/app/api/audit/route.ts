@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { writeAudit } from '@/lib/server/audit';
+import { requireSession } from '@/lib/server/require-session';
 import type { AuditEntry } from '@/lib/rcm-types';
 
 export const dynamic = 'force-dynamic';
@@ -31,6 +32,8 @@ function serialize(a: {
 /** GET /api/audit — compliance audit trail with optional filters. */
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireSession(request, 'audit.view');
+    if ('error' in auth) return auth.error;
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
     const riskLevel = searchParams.get('riskLevel');
@@ -59,11 +62,19 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** POST /api/audit — append an audit entry (used by UI actions). */
+/** POST /api/audit — append an audit entry. Actor is set from the session to
+ *  prevent attribution spoofing. */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireSession(request, 'claims.create');
+    if ('error' in auth) return auth.error;
     const body = await request.json();
-    await writeAudit({ ...body, source: body.source ?? 'ui' });
+    await writeAudit({
+      ...body,
+      actor: auth.ctx.user !== 'system' ? auth.ctx.user : (body.actor ?? 'System User'),
+      actorRole: auth.ctx.role,
+      source: body.source ?? 'ui',
+    });
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
     console.error('Audit POST error:', error);

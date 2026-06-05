@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processOnce, processToGate } from '@/lib/server/claim-service';
+import { requireSession } from '@/lib/server/require-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +12,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireSession(request, 'claims.process');
+    if ('error' in auth) return auth.error;
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
     const mode = body.mode === 'auto' ? 'auto' : 'step';
-    const actor = body.actor ?? 'Operator';
+    const actor = auth.ctx.user !== 'system' ? auth.ctx.user : (body.actor ?? 'Operator');
 
     if (mode === 'auto') {
       const { steps, claim } = await processToGate(id, actor);

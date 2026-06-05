@@ -19,8 +19,24 @@ export function expectedUser(): string {
   return process.env.RCM_UI_USER || 'admin';
 }
 
+// Per-process random secret used ONLY when RCM_SESSION_SECRET is unset. This is
+// never a known constant (so tokens can't be forged with a public default), but
+// sessions won't survive a restart or span multiple instances — set
+// RCM_SESSION_SECRET in production. The UI password is intentionally NOT reused
+// as the signing key.
+let ephemeralSecret: string | null = null;
+
 function sessionSecret(): string {
-  return process.env.RCM_SESSION_SECRET || process.env.RCM_UI_PASSWORD || 'veebase-dev-secret';
+  const configured = process.env.RCM_SESSION_SECRET?.trim();
+  if (configured) return configured;
+  if (!ephemeralSecret) {
+    const rnd = (globalThis.crypto ?? crypto).getRandomValues(new Uint8Array(32));
+    ephemeralSecret = b64urlEncode(rnd);
+    if (uiAuthEnabled()) {
+      console.warn('[session] RCM_SESSION_SECRET is not set — using an ephemeral per-process secret. Set it for stable, multi-instance sessions.');
+    }
+  }
+  return ephemeralSecret;
 }
 
 function b64urlEncode(bytes: Uint8Array): string {
@@ -68,8 +84,10 @@ export async function createSessionToken(
 }
 
 export async function verifySessionToken(token: string | undefined | null): Promise<SessionData | null> {
-  if (!token || !token.includes('.')) return null;
-  const [payloadB64, sig] = token.split('.');
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null; // reject malformed / multi-segment tokens
+  const [payloadB64, sig] = parts;
   const expected = b64urlEncode(await hmac(payloadB64));
   // Constant-time-ish comparison.
   if (sig.length !== expected.length) return null;

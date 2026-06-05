@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/server/auth';
 import { parseBody, WebhookSchema } from '@/lib/validation';
+import { checkOutboundUrl } from '@/lib/server/ssrf';
 import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,13 @@ export async function POST(request: NextRequest) {
   const parsed = await parseBody(request, WebhookSchema);
   if (!parsed.ok) return parsed.response;
   const body = parsed.data;
+
+  // SSRF guard: reject URLs that target private/loopback/metadata addresses.
+  const urlCheck = await checkOutboundUrl(body.url);
+  if (!urlCheck.ok) {
+    return NextResponse.json({ error: `Webhook URL rejected: ${urlCheck.reason}` }, { status: 422 });
+  }
+
   const secret = 'whsec_' + crypto.randomBytes(20).toString('hex');
   const hook = await db.webhook.create({
     data: {

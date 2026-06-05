@@ -36,10 +36,13 @@ function rateLimit(key: string): { ok: boolean; remaining: number; resetAt: numb
 }
 
 function corsOrigin(request: NextRequest): string {
+  // When the allow-list is wildcard, return a literal '*' (never reflect the
+  // caller's Origin) — reflecting Origin is only safe with an explicit list and
+  // is a credentialed-CORS footgun. We never set Allow-Credentials.
+  if (ALLOWED_ORIGINS.includes('*')) return '*';
   const origin = request.headers.get('origin');
-  if (ALLOWED_ORIGINS.includes('*')) return origin ?? '*';
   if (origin && ALLOWED_ORIGINS.includes(origin)) return origin;
-  return ALLOWED_ORIGINS[0] ?? '*';
+  return ALLOWED_ORIGINS[0] ?? 'null';
 }
 
 function requestId(): string {
@@ -97,9 +100,13 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isApiV1) {
-    const apiKey = request.headers.get('x-api-key') ?? request.headers.get('authorization') ?? '';
+    const apiKey = (request.headers.get('x-api-key') ?? request.headers.get('authorization') ?? '')
+      .replace(/^Bearer\s+/i, '')
+      .trim();
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'anon';
-    const limitKey = apiKey ? `k:${apiKey.slice(-16)}` : `ip:${ip}`;
+    // Bucket on the full normalized credential (not a suffix) so an attacker
+    // can't collide a victim's bucket by matching the last N chars.
+    const limitKey = apiKey ? `k:${apiKey}` : `ip:${ip}`;
     const { ok, remaining, resetAt } = rateLimit(limitKey);
 
     if (!ok) {
