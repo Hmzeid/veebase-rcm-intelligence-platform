@@ -145,21 +145,33 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full data model, scor
 
 Prerequisites: [Bun](https://bun.sh).
 
+**One command (fresh clone):**
+
 ```bash
-# 1. Install dependencies
+./scripts/setup.sh      # copies .env, installs, generates client, migrates, seeds
+bun run dev             # http://localhost:3000
+```
+
+**Or step by step:**
+
+```bash
+# 1. Configure environment (DATABASE_URL etc.)
+cp .env.example .env
+
+# 2. Install dependencies
 bun install
 
-# 2. Generate the Prisma client
+# 3. Generate the Prisma client
 bunx prisma generate
 
-# 3. Create the database schema
-bunx prisma db push
+# 4. Create the database schema (migrations)
+bunx prisma migrate deploy     # or, for quick local dev: bunx prisma db push
 
-# 4. Seed demo data
-#    (12 agents, 25 claims, 10 escalations, 12 KPIs, 20 audit entries)
+# 5. Seed demo data
+#    (12 agents, 25 claims, 10 escalations, 12 KPIs, 20 audit entries, 5 RBAC users)
 bun run prisma/seed.ts
 
-# 5. Run in development (port 3000)
+# 6. Run in development (port 3000)
 bun run dev
 ```
 

@@ -25,10 +25,10 @@ jobs:
       - name: Generate Prisma client
         run: bunx prisma generate
 
-      - name: Prepare database
+      - name: Prepare database (apply migrations)
         run: |
           mkdir -p db
-          bunx prisma db push --skip-generate
+          bunx prisma migrate deploy
 
       - name: Lint
         run: bun run lint

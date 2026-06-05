@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { BrainCircuit, Check, Loader2, PlugZap, Cpu, Cloud } from 'lucide-react';
+import { BrainCircuit, Check, Loader2, PlugZap, Cpu, Cloud, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSession } from '@/lib/use-session';
 
 interface ProviderInfo {
   id: string;
@@ -28,6 +29,8 @@ export function AIModelsCard() {
   const [state, setState] = useState<AIState | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
+  const { can } = useSession();
+  const canManage = can('ai.manage');
 
   const load = useCallback(async () => {
     try {
@@ -116,7 +119,7 @@ export function AIModelsCard() {
               <p className="text-xs text-muted-foreground mt-0.5 truncate font-mono">{p.model}</p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={testing === p.id || !p.configured} onClick={() => test(p.id)}>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={testing === p.id || !p.configured || !canManage} onClick={() => test(p.id)}>
                 {testing === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PlugZap className="w-3.5 h-3.5" />}
                 <span className="ml-1">Test</span>
               </Button>
@@ -125,8 +128,8 @@ export function AIModelsCard() {
                   <Check className="w-3.5 h-3.5 mr-1" /> Active
                 </Button>
               ) : (
-                <Button size="sm" className="h-7 text-xs" disabled={busy === p.id || !p.configured} onClick={() => switchTo(p.id)}>
-                  {busy === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Set active'}
+                <Button size="sm" className="h-7 text-xs" disabled={busy === p.id || !p.configured || !canManage} onClick={() => switchTo(p.id)} title={!canManage ? 'Requires the ai.manage capability' : undefined}>
+                  {busy === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : !canManage ? <Lock className="w-3.5 h-3.5" /> : 'Set active'}
                 </Button>
               )}
             </div>

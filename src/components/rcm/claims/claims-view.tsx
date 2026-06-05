@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRCMStore } from '@/lib/rcm-store';
 import { apiProcessClaim } from '@/lib/rcm-sync';
+import { useSession } from '@/lib/use-session';
 import { useI18n } from '@/lib/i18n';
 import { AgentOutput, AppealStrategy, ClaimRecord, ClaimStatus, ConfidenceLevel, STATUS_COLORS, PIPELINE_STAGES } from '@/lib/rcm-types';
 import { CLAIM_AGENT_OUTPUTS, APPEAL_STRATEGIES } from '@/lib/rcm-data';
@@ -341,10 +342,12 @@ function ClaimRow({ claim, onClick }: { claim: ClaimRecord; onClick: () => void 
 function ClaimDetail({ claim }: { claim: ClaimRecord }) {
   const { t } = useI18n();
   const { upsertClaim, setSelectedClaim } = useRCMStore();
+  const { can } = useSession();
   const [processing, setProcessing] = useState(false);
   const statusIdx = PIPELINE_STAGES.indexOf(claim.status as ClaimStatus);
 
   const isTerminalClaim = ['PAID', 'CLOSED', 'WRITTEN_OFF'].includes(claim.status);
+  const canProcess = can('claims.process');
 
   async function runAgents() {
     setProcessing(true);
@@ -387,7 +390,8 @@ function ClaimDetail({ claim }: { claim: ClaimRecord }) {
               size="sm"
               className="h-7 text-xs ml-auto bg-violet-600 hover:bg-violet-700 text-white"
               onClick={runAgents}
-              disabled={processing}
+              disabled={processing || !canProcess}
+              title={!canProcess ? 'Requires the claims.process capability' : undefined}
             >
               <Zap className={cn('w-3.5 h-3.5 mr-1.5', processing && 'animate-pulse')} />
               {processing ? 'Running…' : t.claims.runAgents}
