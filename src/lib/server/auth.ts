@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { sharedStoreEnabled, consumeRateLimit } from './kv';
 
 const PREFIX = 'rcm_live_';
 
@@ -85,6 +86,29 @@ export async function requireAuth(
         { status: 401, headers: { 'WWW-Authenticate': 'Bearer' } },
       ),
     };
+  }
+
+  // Cross-instance rate limit — authoritative when a shared store (Redis) is
+  // configured. The Edge middleware provides the per-instance first line.
+  if (sharedStoreEnabled()) {
+    const limit = Number(process.env.RCM_RATE_LIMIT ?? 240);
+    const windowMs = Number(process.env.RCM_RATE_WINDOW_MS ?? 60_000);
+    const decision = await consumeRateLimit(`rl:${ctx.keyId}`, limit, windowMs);
+    if (!decision.ok) {
+      return {
+        error: NextResponse.json(
+          { error: 'Too Many Requests', message: 'Rate limit exceeded (shared).' },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(Math.ceil((decision.resetAt - Date.now()) / 1000)),
+              'X-RateLimit-Limit': String(limit),
+              'X-RateLimit-Remaining': '0',
+            },
+          },
+        ),
+      };
+    }
   }
   if (scope && !ctx.scopes.includes(scope) && !ctx.scopes.includes('admin')) {
     return {

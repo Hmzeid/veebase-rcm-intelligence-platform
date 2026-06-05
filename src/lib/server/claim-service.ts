@@ -3,6 +3,7 @@ import type { ClaimRecord, ClaimStatus, PayerType } from '@/lib/rcm-types';
 import { processClaim, computeReadiness, computeDenialRisk, isTerminal, type EngineClaim, type AgentResult } from '@/lib/rcm-engine';
 import { writeAudit } from './audit';
 import { emitEvent, type RcmEvent } from './webhooks';
+import { encryptField, decryptField } from './crypto-field';
 
 // ── Serialization ───────────────────────────────────────────────────────
 
@@ -14,7 +15,7 @@ export function serializeClaim(c: NonNullable<DbClaim>): ClaimRecord {
     claimNumber: c.claimNumber,
     patientId: c.patientId,
     patientName: c.patientName,
-    nationalId: c.nationalId,
+    nationalId: decryptField(c.nationalId),
     encounterId: c.encounterId,
     payerId: c.payerId,
     payerName: c.payerName,
@@ -222,7 +223,7 @@ export async function createClaim(input: CreateClaimInput, actor = 'API'): Promi
       claimNumber: baseClaim.claimNumber,
       patientId: baseClaim.patientId,
       patientName: baseClaim.patientName,
-      nationalId: baseClaim.nationalId,
+      nationalId: encryptField(baseClaim.nationalId),
       encounterId: baseClaim.encounterId,
       payerId: baseClaim.payerId,
       payerName: baseClaim.payerName,
