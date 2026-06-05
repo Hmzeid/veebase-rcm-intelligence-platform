@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import path from 'node:path'
+import fs from 'node:fs'
 
 /**
  * Resolve a robust, absolute database URL.
@@ -35,14 +36,45 @@ function resolveDatabaseUrl(): string {
   }
 
   if (!path.isAbsolute(filePath)) {
-    // Strip any leading ./ or ../ segments and re-anchor at the project root
-    // (the working directory). This keeps a single canonical DB location
-    // regardless of where the bundled code physically lives.
+    // Strip any leading ./ or ../ segments and re-anchor at the project root.
     const cleaned = filePath.replace(/^(\.\.\/)+/, '').replace(/^\.\//, '')
-    filePath = path.resolve(process.cwd(), cleaned)
+    filePath = path.resolve(projectRoot(), cleaned)
   }
 
   return `file:${filePath}`
+}
+
+/**
+ * Determine the project root regardless of where the bundled server runs from.
+ *
+ * Next.js `standalone` output chdir's the server into `.next/standalone/`, so
+ * `process.cwd()` is NOT the project root there. We therefore walk up from cwd
+ * looking for an anchor (the `db` folder, `prisma/schema.prisma`, or a
+ * `package.json`), and also special-case the standalone directory. This keeps a
+ * single canonical SQLite location in dev and in the standalone server.
+ */
+function projectRoot(): string {
+  let dir = process.cwd()
+
+  // Next standalone: cwd ends with .next/standalone → go up two levels.
+  const standalone = path.join('.next', 'standalone')
+  if (dir.endsWith(standalone)) {
+    return path.resolve(dir, '..', '..')
+  }
+
+  // Walk up to find a directory that looks like the project root.
+  for (let i = 0; i < 6; i++) {
+    if (
+      fs.existsSync(path.join(dir, 'db')) ||
+      fs.existsSync(path.join(dir, 'prisma', 'schema.prisma'))
+    ) {
+      return dir
+    }
+    const parent = path.dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  return process.cwd()
 }
 
 const databaseUrl = resolveDatabaseUrl()
