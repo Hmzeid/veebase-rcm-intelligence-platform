@@ -12,7 +12,7 @@ export const SESSION_COOKIE = 'rcm_session';
 const DEFAULT_TTL_SECONDS = 60 * 60 * 12; // 12 hours
 
 export function uiAuthEnabled(): boolean {
-  return !!process.env.RCM_UI_PASSWORD;
+  return process.env.RCM_AUTH_ENABLED === 'true' || !!process.env.RCM_UI_PASSWORD;
 }
 
 export function expectedUser(): string {
@@ -49,14 +49,25 @@ async function hmac(data: string): Promise<Uint8Array> {
   return new Uint8Array(sig);
 }
 
-export async function createSessionToken(user: string, ttlSeconds = DEFAULT_TTL_SECONDS): Promise<string> {
-  const payload = JSON.stringify({ u: user, exp: Math.floor(Date.now() / 1000) + ttlSeconds });
+export interface SessionData {
+  user: string;
+  role: string;
+  uid?: string;
+}
+
+export async function createSessionToken(
+  user: string,
+  role = 'ADMIN',
+  uid?: string,
+  ttlSeconds = DEFAULT_TTL_SECONDS,
+): Promise<string> {
+  const payload = JSON.stringify({ u: user, r: role, id: uid, exp: Math.floor(Date.now() / 1000) + ttlSeconds });
   const payloadB64 = b64urlEncode(new TextEncoder().encode(payload));
   const sig = b64urlEncode(await hmac(payloadB64));
   return `${payloadB64}.${sig}`;
 }
 
-export async function verifySessionToken(token: string | undefined | null): Promise<{ user: string } | null> {
+export async function verifySessionToken(token: string | undefined | null): Promise<SessionData | null> {
   if (!token || !token.includes('.')) return null;
   const [payloadB64, sig] = token.split('.');
   const expected = b64urlEncode(await hmac(payloadB64));
@@ -69,7 +80,7 @@ export async function verifySessionToken(token: string | undefined | null): Prom
   try {
     const payload = JSON.parse(new TextDecoder().decode(b64urlDecode(payloadB64)));
     if (typeof payload.exp !== 'number' || payload.exp < Math.floor(Date.now() / 1000)) return null;
-    return { user: String(payload.u) };
+    return { user: String(payload.u), role: String(payload.r ?? 'ADMIN'), uid: payload.id ? String(payload.id) : undefined };
   } catch {
     return null;
   }

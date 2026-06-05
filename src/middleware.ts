@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken, SESSION_COOKIE } from '@/lib/server/session';
+import { verifySessionToken, uiAuthEnabled, SESSION_COOKIE } from '@/lib/server/session';
 
 /**
  * Edge middleware for the integration API surface.
@@ -69,8 +69,8 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isApiV1 = pathname.startsWith('/api/v1');
 
-  // Optional UI auth gate — active only when RCM_UI_PASSWORD is configured.
-  if (process.env.RCM_UI_PASSWORD && !isPublicPath(pathname)) {
+  // Optional UI auth gate — active when RCM_AUTH_ENABLED=true or RCM_UI_PASSWORD set.
+  if (uiAuthEnabled() && !isPublicPath(pathname)) {
     const session = await verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value);
     if (!session) {
       if (pathname.startsWith('/api/')) {

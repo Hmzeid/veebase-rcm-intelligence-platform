@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { AGENTS, CLAIMS, ESCALATIONS, KPIS, AUDIT_ENTRIES } from '../src/lib/rcm-data';
+import { hashPassword } from '../src/lib/server/passwords';
 
 const prisma = new PrismaClient();
 
@@ -23,7 +24,9 @@ async function main() {
   await prisma.webhook.deleteMany({});
   await prisma.apiKey.deleteMany({});
   await prisma.idempotencyKey.deleteMany({});
-  console.log('  ✓ Processing events, webhooks, API keys & idempotency cleared');
+  await prisma.user.deleteMany({});
+  await prisma.setting.deleteMany({});
+  console.log('  ✓ Processing events, webhooks, API keys, idempotency, users & settings cleared');
 
   // Seed Agents
   console.log('\n📋 Seeding agents...');
@@ -104,6 +107,22 @@ async function main() {
     });
   }
   console.log(`  ✓ ${ESCALATIONS.length} escalations seeded`);
+
+  // Seed RBAC demo users (inert until RCM_AUTH_ENABLED=true / RCM_UI_PASSWORD set).
+  console.log('\n👤 Seeding demo users (RBAC)...');
+  const demoUsers = [
+    { email: 'admin@veebase.health', name: 'Platform Admin', role: 'ADMIN', password: process.env.RCM_SEED_ADMIN_PASSWORD || 'Admin!234' },
+    { email: 'manager@veebase.health', name: 'RCM Manager', role: 'RCM_MANAGER', password: 'Manager!234' },
+    { email: 'biller@veebase.health', name: 'Billing Specialist', role: 'BILLER', password: 'Biller!234' },
+    { email: 'compliance@veebase.health', name: 'Compliance Officer', role: 'COMPLIANCE', password: 'Comply!234' },
+    { email: 'viewer@veebase.health', name: 'Read-Only Viewer', role: 'VIEWER', password: 'Viewer!234' },
+  ];
+  for (const u of demoUsers) {
+    await prisma.user.create({
+      data: { email: u.email, name: u.name, role: u.role, passwordHash: hashPassword(u.password) },
+    });
+  }
+  console.log(`  ✓ ${demoUsers.length} demo users seeded (admin@veebase.health / Admin!234)`);
 
   // Seed KPIs
   console.log('\n📊 Seeding KPI records...');

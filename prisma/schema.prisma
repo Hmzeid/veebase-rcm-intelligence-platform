@@ -156,6 +156,19 @@ model Webhook {
   deliveries  WebhookDelivery[]
 }
 
+/// Application users for role-based access control (RBAC).
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         String    @default("VIEWER") // ADMIN | RCM_MANAGER | BILLER | COMPLIANCE | VIEWER
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
 /// Key/value application settings (e.g. the runtime-selected AI provider).
 model Setting {
   key       String   @id

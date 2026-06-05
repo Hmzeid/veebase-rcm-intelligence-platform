@@ -19,8 +19,14 @@ describe('session tokens', () => {
   });
 
   test('rejects an expired token', async () => {
-    const token = await createSessionToken('admin', -10); // already expired
+    const token = await createSessionToken('admin', 'ADMIN', undefined, -10); // already expired
     expect(await verifySessionToken(token)).toBeNull();
+  });
+
+  test('carries the role in the session', async () => {
+    const token = await createSessionToken('manager', 'RCM_MANAGER');
+    const session = await verifySessionToken(token);
+    expect(session?.role).toBe('RCM_MANAGER');
   });
 
   test('rejects malformed input', async () => {
