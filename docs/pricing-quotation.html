@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Veebase RCM — Pricing &amp; Quotation Generator</title>
+<style>
+  :root{
+    --navy:#0b1f3a; --blue:#1d6fb8; --teal:#0e7c7b; --ink:#1f2937; --muted:#6b7280;
+    --line:#e2e8f0; --bg:#f1f5f9; --light:#eaf2fa; --lighter:#f8fafc; --ok:#0f7c56; --warn:#9a3412;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;font-size:14px;line-height:1.5}
+  a{color:var(--blue)}
+  .band{background:var(--navy);color:#fff;padding:18px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  .band h1{margin:0;font-size:18px;font-weight:700;letter-spacing:.3px}
+  .band .logo{font-weight:800;color:#7fb3e6;letter-spacing:2px}
+  .band p{margin:2px 0 0;font-size:12px;color:#9fb3c9}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media (max-width:900px){.wrap{grid-template-columns:1fr}}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:18px}
+  .card h2{margin:0 0 4px;font-size:15px;color:var(--navy)}
+  .card h2 .ic{color:var(--blue)}
+  .card .hint{color:var(--muted);font-size:12px;margin:0 0 14px}
+  label{display:block;font-size:12px;font-weight:600;color:#475569;margin:10px 0 4px}
+  input,select{width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:inherit;background:#fff}
+  input:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,111,184,.15)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .plans{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px}
+  @media (max-width:520px){.plans,.row3{grid-template-columns:1fr}}
+  .plan{border:1.5px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;transition:.15s;background:#fff}
+  .plan:hover{border-color:#94a3b8}
+  .plan.sel{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,111,184,.12)}
+  .plan .nm{font-weight:700;color:var(--navy);font-size:14px}
+  .plan .pr{font-size:18px;font-weight:800;color:var(--blue);margin:4px 0}
+  .plan .pr span{font-size:11px;font-weight:600;color:var(--muted)}
+  .plan ul{margin:8px 0 0;padding-left:16px;color:#475569;font-size:11.5px;line-height:1.5}
+  .addon{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed #e5e7eb}
+  .addon:last-child{border-bottom:none}
+  .addon input[type=checkbox]{width:18px;height:18px;flex:0 0 auto}
+  .addon .nm{flex:1;font-size:13px}
+  .addon .nm small{display:block;color:var(--muted);font-size:11px}
+  .addon .qty{width:62px}
+  .addon .rate{width:96px;text-align:right;font-variant-numeric:tabular-nums}
+  .tag{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;background:var(--light);color:var(--blue);margin-left:6px}
+  .tag.ot{background:#fef3c7;color:#92400e}
+  details{margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:6px 12px}
+  details summary{cursor:pointer;font-weight:600;color:var(--blue);font-size:13px}
+  details .rate-row{display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center;margin:8px 0;font-size:12.5px}
+  /* Quote document */
+  .quote{background:#fff;border:1px solid var(--line);border-radius:12px;padding:0;overflow:hidden;position:sticky;top:16px;align-self:start}
+  .qhead{background:linear-gradient(180deg,#0b1f3a,#123) ;color:#fff;padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start}
+  .qhead .logo{font-weight:800;color:#7fb3e6;letter-spacing:2px;font-size:15px}
+  .qhead h3{margin:2px 0 0;font-size:13px;color:#cdd9e6;font-weight:500}
+  .qhead .meta{text-align:right;font-size:11.5px;color:#cdd9e6;line-height:1.7}
+  .qhead .meta b{color:#fff}
+  .qbody{padding:18px 24px}
+  .billto{display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:12px;margin-bottom:14px}
+  .billto .lbl{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+  table.items{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+  table.items th{background:var(--navy);color:#fff;text-align:left;padding:7px 9px;font-size:11px;font-weight:600}
+  table.items th.r,table.items td.r{text-align:right}
+  table.items td{padding:7px 9px;border-bottom:1px solid #eef2f7;vertical-align:top}
+  table.items tr:nth-child(even) td{background:var(--lighter)}
+  table.items .grp td{background:#eef4fb;font-weight:700;color:var(--navy);font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  table.items td small{color:var(--muted);display:block;font-size:10.5px}
+  .num{font-variant-numeric:tabular-nums}
+  .totals{margin-top:12px;margin-left:auto;width:100%;font-size:12.5px}
+  .totals td{padding:5px 9px}
+  .totals td.r{text-align:right;font-variant-numeric:tabular-nums}
+  .totals .sub td{border-top:1px solid var(--line)}
+  .totals .grand td{border-top:2px solid var(--navy);font-size:15px;font-weight:800;color:var(--navy);padding-top:9px}
+  .totals .rec td{color:var(--teal);font-weight:700}
+  .terms{margin-top:16px;font-size:10.5px;color:var(--muted);line-height:1.6;border-top:1px solid var(--line);padding-top:10px}
+  .sign{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:18px;font-size:11px}
+  .sign .ln{border-top:1px solid #94a3b8;padding-top:4px;color:var(--muted)}
+  .toolbar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 24px;display:flex;gap:10px;flex-wrap:wrap}
+  button{padding:9px 16px;border-radius:8px;border:1px solid var(--blue);background:var(--blue);color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+  button.ghost{background:#fff;color:var(--blue)}
+  button:hover{filter:brightness(.96)}
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;color:var(--teal);background:#e1f5ee;border-radius:6px;padding:2px 8px}
+  @media print{
+    body{background:#fff}
+    .band,.builder,.toolbar,.noprint{display:none!important}
+    .wrap{display:block;max-width:none;padding:0;margin:0}
+    .quote{border:none;border-radius:0;position:static;box-shadow:none}
+    .qhead{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    table.items th,table.items .grp td,.totals .grand td{ -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div class="band">
+  <div>
+    <h1><span class="logo">VEEBASE</span> &nbsp;RCM Intelligence — Quotation Generator</h1>
+    <p>Configure a plan, volume, seats and add-ons. Every rate is editable. Print or save the quote as PDF.</p>
+  </div>
+  <div class="pill">Currency &amp; VAT configurable · illustrative pricing</div>
+</div>
+
+<div class="wrap">
+  <!-- ============ BUILDER ============ -->
+  <div class="builder">
+    <div class="card">
+      <h2>1 · Customer &amp; quote details</h2>
+      <p class="hint">Appears on the quotation header.</p>
+      <div class="row">
+        <div><label>Customer / organization</label><input id="custOrg" placeholder="e.g. Cairo Medical Center" value="Cairo Medical Center"/></div>
+        <div><label>Contact name</label><input id="custName" placeholder="e.g. Dr. Ahmed Hassan"/></div>
+      </div>
+      <div class="row">
+        <div><label>Contact email</label><input id="custEmail" placeholder="name@hospital.com"/></div>
+        <div><label>Country / city</label><input id="custCountry" value="Cairo, Egypt"/></div>
+      </div>
+      <div class="row3">
+        <div><label>Quote no.</label><input id="quoteNo" readonly/></div>
+        <div><label>Date</label><input id="quoteDate" readonly/></div>
+        <div><label>Valid for (days)</label><input id="validDays" type="number" min="1" value="30"/></div>
+      </div>
+      <div><label>Prepared by</label><input id="preparedBy" placeholder="Sales representative name"/></div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Plan</h2>
+      <p class="hint">Sets the base subscription, included claims/month and included seats.</p>
+      <div class="plans" id="plans"></div>
+      <div class="row3" style="margin-top:14px">
+        <div><label>Billing term</label>
+          <select id="term"><option value="monthly">Monthly</option><option value="annual" selected>Annual (2 months free)</option></select>
+        </div>
+        <div><label>Currency</label>
+          <select id="currency"><option value="EGP" selected>EGP (E£)</option><option value="USD">USD ($)</option></select>
+        </div>
+        <div><label>FX — EGP per 1 USD</label><input id="fx" type="number" min="1" step="0.1" value="49"/></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3 · Usage</h2>
+      <p class="hint">Charges only for usage beyond what the plan includes.</p>
+      <div class="row3">
+        <div><label>Claims / month</label><input id="claims" type="number" min="0" step="100" value="8000"/></div>
+        <div><label>Named users (seats)</label><input id="seats" type="number" min="1" step="1" value="25"/></div>
+        <div><label>Facilities / sites</label><input id="sites" type="number" min="1" step="1" value="1"/></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>4 · Add-ons &amp; services</h2>
+      <p class="hint"><span class="tag ot">one-time</span> billed once · <span class="tag">recurring</span> billed each term.</p>
+      <div id="addons"></div>
+    </div>
+
+    <div class="card">
+      <h2>5 · Commercial terms</h2>
+      <div class="row3">
+        <div><label>Discount %</label><input id="discount" type="number" min="0" max="100" step="0.5" value="0"/></div>
+        <div><label>VAT %</label><input id="vat" type="number" min="0" max="100" step="0.5" value="14"/></div>
+        <div><label>Sites multiplier</label><select id="sitesMult"><option value="0">Base price covers all sites</option><option value="1">Multiply base by sites</option></select></div>
+      </div>
+      <details>
+        <summary>Adjust rate card (advanced)</summary>
+        <div id="rates"></div>
+      </details>
+    </div>
+  </div>
+
+  <!-- ============ QUOTE DOCUMENT ============ -->
+  <div>
+    <div class="quote">
+      <div class="qhead">
+        <div>
+          <div class="logo">VEEBASE</div>
+          <h3>RCM Intelligence Platform — Quotation</h3>
+        </div>
+        <div class="meta" id="qmeta"></div>
+      </div>
+      <div class="qbody">
+        <div class="billto">
+          <div><div class="lbl">Bill to</div><div id="qBillTo"></div></div>
+          <div><div class="lbl">Prepared by</div><div id="qPrepared"></div></div>
+        </div>
+        <table class="items"><thead>
+          <tr><th>Item</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Amount</th></tr>
+        </thead><tbody id="qItems"></tbody></table>
+        <table class="totals"><tbody id="qTotals"></tbody></table>
+        <div class="terms" id="qTerms"></div>
+        <div class="sign">
+          <div class="ln">Customer acceptance (signature &amp; date)</div>
+          <div class="ln">Veebase authorized signature</div>
+        </div>
+      </div>
+      <div class="toolbar noprint">
+        <button onclick="window.print()">Print / Save as PDF</button>
+        <button class="ghost" onclick="copyText()">Copy as text</button>
+        <button class="ghost" onclick="resetAll()">Reset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- Pricing schema (all rates in EGP, editable) ---------- */
+const PLANS = {
+  pilot:   { name:'Pilot',        base:25000,  inclClaims:1000,  inclSeats:5,   overage:18, seat:1500, desc:['90-day evaluation','Core 12 agents','Email support','Up to 1,000 claims/mo'] },
+  pro:     { name:'Professional', base:75000,  inclClaims:5000,  inclSeats:20,  overage:12, seat:1200, desc:['Full platform + integrations','REST + FHIR + webhooks','RBAC + audit trail','Up to 5,000 claims/mo'] },
+  ent:     { name:'Enterprise',   base:180000, inclClaims:25000, inclSeats:0,   overage:8,  seat:0,    desc:['Unlimited seats','On-prem / local AI option','SSO-ready · priority SLA','25,000+ claims/mo'] },
+};
+const ADDONS = [
+  { id:'impl',   name:'Implementation & onboarding', note:'Configuration, payer rules, go-live', type:'once', rate:150000, qty:1, on:true },
+  { id:'migrate',name:'Historical data migration',   note:'Legacy claims & masters', type:'once', rate:80000, qty:1, on:false },
+  { id:'integ',  name:'Custom integration (HIS/EHR/payer)', note:'Per integration', type:'once', rate:120000, qty:1, on:false },
+  { id:'onprem', name:'On-prem / local-AI deployment', note:'Setup of fully on-premise install', type:'once', rate:250000, qty:1, on:false },
+  { id:'train',  name:'Training session', note:'Per 3-hour session (per group)', type:'once', rate:25000, qty:1, on:false },
+  { id:'support',name:'Premium 24/7 support', note:'Per term', type:'rec', rate:40000, qty:1, on:false },
+  { id:'csm',    name:'Dedicated success manager', note:'Per term', type:'rec', rate:60000, qty:1, on:false },
+  { id:'onpremM',name:'On-prem / local-AI hosting', note:'Per term', type:'rec', rate:30000, qty:1, on:false },
+  { id:'staging',name:'Additional (staging) environment', note:'Per term', type:'rec', rate:25000, qty:1, on:false },
+];
+let plan = 'pro';
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const num = id => parseFloat($(id).value)||0;
+function curMeta(){ const c=$('currency').value; return { code:c, sym:c==='USD'?'$':'E£', fx: c==='USD'? num('fx')||1 : 1 }; }
+function money(egp){ const m=curMeta(); const v=egp/m.fx; return m.sym+' '+Math.round(v).toLocaleString('en-US'); }
+
+/* ---------- Render builder controls ---------- */
+function renderPlans(){
+  $('plans').innerHTML = Object.entries(PLANS).map(([k,p])=>`
+    <div class="plan ${k===plan?'sel':''}" data-k="${k}" onclick="selPlan('${k}')">
+      <div class="nm">${p.name}</div>
+      <div class="pr">${money(p.base)} <span>/ mo</span></div>
+      <ul>${p.desc.map(d=>`<li>${d}</li>`).join('')}</ul>
+    </div>`).join('');
+}
+function selPlan(k){ plan=k; renderPlans(); compute(); }
+
+function renderAddons(){
+  $('addons').innerHTML = ADDONS.map(a=>`
+    <div class="addon">
+      <input type="checkbox" id="ck_${a.id}" ${a.on?'checked':''} onchange="ADDONS.find(x=>x.id==='${a.id}').on=this.checked;compute()"/>
+      <div class="nm">${a.name}<small>${a.note} <span class="tag ${a.type==='once'?'ot':''}">${a.type==='once'?'one-time':'recurring'}</span></small></div>
+      <input class="qty" type="number" min="0" step="1" value="${a.qty}" oninput="ADDONS.find(x=>x.id==='${a.id}').qty=parseFloat(this.value)||0;compute()"/>
+      <input class="rate num" type="number" min="0" step="1000" value="${a.rate}" oninput="ADDONS.find(x=>x.id==='${a.id}').rate=parseFloat(this.value)||0;compute()"/>
+    </div>`).join('');
+}
+function renderRates(){
+  $('rates').innerHTML = Object.entries(PLANS).map(([k,p])=>`
+    <div style="margin:8px 0 4px;font-weight:700;color:#0b1f3a">${p.name}</div>
+    <div class="rate-row"><span>Base / month (EGP)</span><input type="number" value="${p.base}" oninput="PLANS['${k}'].base=parseFloat(this.value)||0;renderPlans();compute()"/></div>
+    <div class="rate-row"><span>Included claims / mo</span><input type="number" value="${p.inclClaims}" oninput="PLANS['${k}'].inclClaims=parseFloat(this.value)||0;compute()"/></div>
+    <div class="rate-row"><span>Overage / claim (EGP)</span><input type="number" value="${p.overage}" oninput="PLANS['${k}'].overage=parseFloat(this.value)||0;compute()"/></div>
+    <div class="rate-row"><span>Included seats (0=unltd)</span><input type="number" value="${p.inclSeats}" oninput="PLANS['${k}'].inclSeats=parseFloat(this.value)||0;compute()"/></div>
+    <div class="rate-row"><span>Extra seat / mo (EGP)</span><input type="number" value="${p.seat}" oninput="PLANS['${k}'].seat=parseFloat(this.value)||0;compute()"/></div>
+  `).join('');
+}
+
+/* ---------- Quote metadata ---------- */
+function initMeta(){
+  const d=new Date();
+  $('quoteDate').value = d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const r=Math.floor(1000+Math.random()*9000);
+  $('quoteNo').value = 'QT-'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'-'+r;
+}
+
+/* ---------- Core computation ---------- */
+function compute(){
+  const p=PLANS[plan], term=$('term').value, annual=term==='annual', termMult=annual?10:1, termLabel=annual?'year':'month';
+  const sitesMult = $('sitesMult').value==='1' ? Math.max(1,Math.round(num('sites'))) : 1;
+  const claims=Math.max(0,Math.round(num('claims'))), seats=Math.max(1,Math.round(num('seats')));
+
+  const lines=[]; // {grp, name, sub, qty, unit, amount, rec}
+  // Recurring: base
+  lines.push({rec:true, name:p.name+' subscription', sub:'Base platform'+(sitesMult>1?` × ${sitesMult} sites`:''), qty:1, unit:p.base*sitesMult, amount:p.base*sitesMult});
+  // Claims overage
+  const overClaims=Math.max(0, claims - p.inclClaims);
+  if(overClaims>0) lines.push({rec:true, name:'Additional claims', sub:`${overClaims.toLocaleString()} over ${p.inclClaims.toLocaleString()} included`, qty:overClaims, unit:p.overage, amount:overClaims*p.overage});
+  // Seats overage
+  if(p.inclSeats>0){
+    const overSeats=Math.max(0, seats - p.inclSeats);
+    if(overSeats>0) lines.push({rec:true, name:'Additional user seats', sub:`${overSeats} over ${p.inclSeats} included`, qty:overSeats, unit:p.seat, amount:overSeats*p.seat});
+  }
+  // Add-ons
+  ADDONS.forEach(a=>{ if(a.on && a.qty>0){ lines.push({rec:a.type==='rec', name:a.name, sub:a.note, qty:a.qty, unit:a.rate, amount:a.rate*a.qty}); }});
+
+  // Split
+  const recMonthly = lines.filter(l=>l.rec).reduce((s,l)=>s+l.amount,0);
+  const recForTerm = recMonthly*termMult;
+  const oneTime = lines.filter(l=>!l.rec).reduce((s,l)=>s+l.amount,0);
+
+  const subtotal = recForTerm + oneTime;
+  const discPct = Math.min(100,Math.max(0,num('discount')));
+  const discount = subtotal*discPct/100;
+  const vatPct = Math.max(0,num('vat'));
+  const taxBase = subtotal - discount;
+  const vat = taxBase*vatPct/100;
+  const total = taxBase + vat;
+  // Recurring-thereafter (per term, after first invoice) with same discount + vat
+  const recAfterNet = recForTerm*(1-discPct/100);
+  const recAfterTotal = recAfterNet*(1+vatPct/100);
+
+  /* ----- render items ----- */
+  let html='';
+  const recLines=lines.filter(l=>l.rec), otLines=lines.filter(l=>!l.rec);
+  html+=`<tr class="grp"><td colspan="4">Recurring — per ${termLabel}${annual?' (annual = 10 × monthly, 2 months free)':''}</td></tr>`;
+  recLines.forEach(l=>{ const a = annual ? l.amount*10 : l.amount; const u = annual ? l.unit*10 : l.unit;
+    html+=`<tr><td>${l.name}<small>${l.sub}${annual?' · billed annually':''}</small></td><td class="r num">${l.qty.toLocaleString()}</td><td class="r num">${money(u)}</td><td class="r num">${money(a)}</td></tr>`; });
+  if(otLines.length){
+    html+=`<tr class="grp"><td colspan="4">One-time fees</td></tr>`;
+    otLines.forEach(l=>{ html+=`<tr><td>${l.name}<small>${l.sub}</small></td><td class="r num">${l.qty.toLocaleString()}</td><td class="r num">${money(l.unit)}</td><td class="r num">${money(l.amount)}</td></tr>`; });
+  }
+  $('qItems').innerHTML=html;
+
+  /* ----- totals ----- */
+  let t='';
+  t+=`<tr><td>Recurring subtotal (per ${termLabel})</td><td class="r">${money(recForTerm)}</td></tr>`;
+  if(oneTime>0) t+=`<tr><td>One-time subtotal</td><td class="r">${money(oneTime)}</td></tr>`;
+  t+=`<tr class="sub"><td>Subtotal</td><td class="r">${money(subtotal)}</td></tr>`;
+  if(discount>0) t+=`<tr><td>Discount (${discPct}%)</td><td class="r">− ${money(discount)}</td></tr>`;
+  t+=`<tr><td>VAT (${vatPct}%)</td><td class="r">${money(vat)}</td></tr>`;
+  t+=`<tr class="grand"><td>Total due — first invoice</td><td class="r">${money(total)}</td></tr>`;
+  t+=`<tr class="rec"><td>Recurring thereafter (per ${termLabel}, incl. VAT)</td><td class="r">${money(recAfterTotal)}</td></tr>`;
+  $('qTotals').innerHTML=t;
+
+  /* ----- header / bill-to / terms ----- */
+  const m=curMeta();
+  $('qmeta').innerHTML = `Quote <b>${$('quoteNo').value}</b><br>Date: <b>${$('quoteDate').value}</b><br>Valid: <b>${Math.round(num('validDays'))} days</b><br>Currency: <b>${m.code}</b>`;
+  $('qBillTo').innerHTML = `<b>${$('custOrg').value||'—'}</b><br>${$('custName').value||''}<br>${$('custEmail').value||''}<br>${$('custCountry').value||''}`;
+  $('qPrepared').innerHTML = `${$('preparedBy').value||'Veebase Sales'}<br>Veebase — RCM Intelligence<br>${$('term').value==='annual'?'Annual agreement':'Monthly agreement'}<br>${Math.max(1,Math.round(num('sites')))} facility(ies)`;
+  $('qTerms').innerHTML = `<b>Terms:</b> Prices in ${m.code}${m.code==='USD'?` (converted at E£${num('fx')}/USD)`:''}. ${$('term').value==='annual'?'Annual plan billed yearly; 2 months free vs. monthly.':'Billed monthly.'} VAT ${vatPct}% applied. Quotation valid for ${Math.round(num('validDays'))} days from the date above. One-time fees are invoiced on signature; recurring fees begin at go-live. Figures are an estimate and subject to a signed agreement. This document is illustrative and not a binding offer.`;
+}
+
+function copyText(){
+  const rows=[...document.querySelectorAll('#qItems tr')].map(tr=>tr.innerText.replace(/\s+/g,' ').trim());
+  const tot=[...document.querySelectorAll('#qTotals tr')].map(tr=>tr.innerText.replace(/\s+/g,' ').trim());
+  const txt=`VEEBASE RCM — QUOTATION ${$('quoteNo').value}\n${$('quoteDate').value}\nFor: ${$('custOrg').value}\n\n`+rows.join('\n')+'\n\n'+tot.join('\n');
+  navigator.clipboard.writeText(txt).then(()=>alert('Quotation copied to clipboard.'),()=>alert('Copy failed — select and copy manually.'));
+}
+function resetAll(){ if(confirm('Reset the quotation to defaults?')) location.reload(); }
+
+/* ---------- Wire up ---------- */
+['custOrg','custName','custEmail','custCountry','validDays','preparedBy','term','currency','fx','claims','seats','sites','discount','vat','sitesMult']
+  .forEach(id=>{ const el=$(id); el.addEventListener('input',()=>{ if(['currency','fx','term'].includes(id)) renderPlans(); compute(); }); el.addEventListener('change',compute); });
+initMeta(); renderPlans(); renderAddons(); renderRates(); compute();
+</script>
+</body>
+</html>

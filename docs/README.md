@@ -11,6 +11,7 @@ for the browser; Markdown files are developer references.
 | [Whitepaper](Veebase-RCM-Whitepaper.docx) | DOCX | Executives, decision-makers |
 | [Solution Overview](Veebase-RCM-Intelligence-Platform.docx) | DOCX | All stakeholders |
 | [Use Cases & ROI](use-cases-and-roi.html) | HTML | Buyers, finance (CFO) |
+| [Pricing & Quotation Generator](pricing-quotation.html) | HTML (interactive) | Sales — build & print quotes |
 
 ## Technical
 
