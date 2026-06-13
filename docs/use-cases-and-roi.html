@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Veebase RCM Intelligence — Use Cases &amp; ROI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --navy:#0b1f3a;
+    --navy-2:#10294b;
+    --blue:#1d6fb8;
+    --blue-soft:#e8f1fa;
+    --teal:#0e7c7b;
+    --teal-soft:#e2f2f1;
+    --ink:#1b2733;
+    --muted:#5b6b7b;
+    --line:#dde5ee;
+    --bg:#f5f8fc;
+    --card:#ffffff;
+    --amber:#b9770e;
+    --green:#0f8a4a;
+    --red:#c0392b;
+    --shadow:0 1px 2px rgba(11,31,58,.06),0 8px 24px rgba(11,31,58,.07);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.55;font-size:15px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  h1,h2,h3{font-family:'Fraunces','Inter',serif;line-height:1.18;letter-spacing:-.01em;margin:0}
+  a{color:var(--blue)}
+  /* Header band */
+  .hero{
+    background:
+      radial-gradient(1200px 380px at 12% -40%,rgba(29,111,184,.55),transparent 60%),
+      radial-gradient(900px 360px at 100% 0%,rgba(14,124,123,.45),transparent 55%),
+      linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 70%);
+    color:#fff;padding:54px 0 46px;position:relative;overflow:hidden;
+  }
+  .hero:after{content:"";position:absolute;inset:0;background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 64px);
+    pointer-events:none;opacity:.5}
+  .brand{display:flex;align-items:center;gap:12px;font-weight:700;letter-spacing:.02em;
+    text-transform:uppercase;font-size:12.5px;color:#bcd6ee;margin-bottom:18px}
+  .brand .dot{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--blue),var(--teal));box-shadow:0 4px 14px rgba(14,124,123,.5);
+    font-family:'Fraunces';font-size:16px;color:#fff}
+  .hero h1{font-size:clamp(28px,4.6vw,46px);font-weight:700;color:#fff;max-width:880px}
+  .hero .vp{margin-top:14px;font-size:clamp(15px,1.7vw,18px);color:#d6e6f5;max-width:760px;font-weight:400}
+  .hero .meta{margin-top:24px;display:flex;flex-wrap:wrap;gap:10px}
+  .pill{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.10);
+    border:1px solid rgba(255,255,255,.18);color:#eaf3fb;border-radius:999px;
+    padding:6px 13px;font-size:12.5px;font-weight:500}
+  /* Sections */
+  section{padding:40px 0}
+  .eyebrow{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--teal);margin-bottom:10px}
+  h2{font-size:clamp(22px,3vw,30px);color:var(--navy);font-weight:700}
+  .lede{color:var(--muted);max-width:760px;margin-top:10px;font-size:16px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:26px 28px;box-shadow:var(--shadow)}
+  /* Use case cards */
+  .grid{display:grid;gap:18px}
+  .cards{grid-template-columns:repeat(2,1fr);margin-top:24px}
+  @media(max-width:760px){.cards{grid-template-columns:1fr}}
+  .uc{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:22px 22px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .uc:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;
+    background:linear-gradient(var(--blue),var(--teal))}
+  .uc .ucnum{font-family:'Fraunces';font-weight:700;font-size:13px;color:#fff;
+    background:var(--navy);width:30px;height:30px;border-radius:9px;display:grid;place-items:center;margin-bottom:12px}
+  .uc h3{font-size:17.5px;color:var(--navy);margin-bottom:4px}
+  .uc .who{font-size:12.5px;color:var(--teal);font-weight:600;text-transform:uppercase;
+    letter-spacing:.05em;margin-bottom:12px}
+  .uc p{margin:0 0 12px;color:#3a4856;font-size:14px}
+  .uc .lbl{font-weight:600;color:var(--navy)}
+  .outcome{margin-top:auto;background:var(--teal-soft);border:1px solid #cbe7e5;
+    border-radius:10px;padding:11px 13px;font-size:13.5px;color:#0b5a59;font-weight:500}
+  .outcome b{color:var(--teal)}
+  /* KPI bars */
+  .kpitable{margin-top:22px;display:grid;gap:12px}
+  .kpi{display:grid;grid-template-columns:230px 1fr auto;gap:16px;align-items:center;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 18px}
+  @media(max-width:680px){.kpi{grid-template-columns:1fr;gap:6px}}
+  .kpi .name{font-weight:600;color:var(--navy);font-size:14px}
+  .kpi .cat{font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+  .bar{position:relative;height:24px;background:#eef3f8;border-radius:7px;overflow:hidden}
+  .bar .fill{position:absolute;top:0;left:0;bottom:0;border-radius:7px;
+    background:linear-gradient(90deg,var(--blue),var(--teal))}
+  .bar .tgt{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--navy);opacity:.65}
+  .bar .tgt:after{content:"";position:absolute;top:-4px;left:-3px;border-left:4px solid transparent;
+    border-right:4px solid transparent;border-top:5px solid var(--navy)}
+  .kpi .vals{font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted);white-space:nowrap}
+  .kpi .vals b{color:var(--navy);font-size:15px}
+  .badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;
+    text-transform:uppercase;letter-spacing:.04em;margin-left:6px}
+  .b-on{background:var(--teal-soft);color:#0b5a59}
+  .b-warn{background:#fdf3e2;color:var(--amber)}
+  .b-off{background:#fbe7e4;color:var(--red)}
+  .legend{margin-top:14px;font-size:12.5px;color:var(--muted);display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+  .legend .sw{display:inline-block;width:22px;height:9px;border-radius:3px;vertical-align:middle;margin-right:6px;
+    background:linear-gradient(90deg,var(--blue),var(--teal))}
+  .legend .tgmark{display:inline-block;width:0;height:0;border-left:4px solid transparent;
+    border-right:4px solid transparent;border-top:6px solid var(--navy);vertical-align:middle;margin-right:6px}
+  /* ROI */
+  .assumptions{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}
+  @media(max-width:760px){.assumptions{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:460px){.assumptions{grid-template-columns:1fr}}
+  .input{background:var(--blue-soft);border:1px solid #cfe1f2;border-radius:11px;padding:13px 15px}
+  .input .k{font-size:11.5px;color:var(--blue);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .input .v{font-size:20px;font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums;margin-top:2px;
+    font-family:'Fraunces'}
+  .input .u{font-size:11.5px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;margin-top:20px;font-size:13.5px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  thead th{background:var(--navy);color:#dce8f4;font-weight:600;font-size:12px;
+    text-transform:uppercase;letter-spacing:.05em;border-bottom:none}
+  thead th:first-child{border-top-left-radius:10px}
+  thead th:last-child{border-top-right-radius:10px}
+  tbody tr:nth-child(even){background:#f8fbfe}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .formula{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--muted)}
+  tfoot td{font-weight:700;color:var(--navy);background:var(--teal-soft);border-top:2px solid var(--teal)}
+  /* Waterfall */
+  .waterfall{margin-top:26px}
+  .wf-row{display:grid;grid-template-columns:200px 1fr 130px;gap:14px;align-items:center;margin-bottom:11px}
+  @media(max-width:680px){.wf-row{grid-template-columns:1fr;gap:4px}}
+  .wf-row .wlbl{font-size:13px;font-weight:600;color:var(--navy)}
+  .wf-track{height:30px;background:#eef3f8;border-radius:7px;position:relative;overflow:hidden}
+  .wf-seg{position:absolute;top:0;bottom:0;border-radius:6px;display:flex;align-items:center;
+    padding-left:10px;color:#fff;font-size:12px;font-weight:600}
+  .c1{background:#1d6fb8}.c2{background:#2a8a9a}.c3{background:#0e7c7b}.c4{background:#3fa39a}
+  .ctotal{background:linear-gradient(90deg,var(--navy),var(--blue))}
+  .wf-row .wval{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--navy);font-size:13.5px}
+  /* callouts */
+  .disclaimer{margin-top:22px;background:#fdf6e9;border:1px solid #f0dcb4;border-left:5px solid var(--amber);
+    border-radius:10px;padding:16px 18px;font-size:13px;color:#7a5a14}
+  .disclaimer b{color:var(--amber)}
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px}
+  @media(max-width:760px){.twocol{grid-template-columns:1fr}}
+  .note{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;box-shadow:var(--shadow)}
+  .phase{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px}
+  @media(max-width:760px){.phase{grid-template-columns:1fr}}
+  .pcard{border:1px solid var(--line);border-radius:13px;padding:18px 18px;background:var(--card);position:relative;box-shadow:var(--shadow)}
+  .pcard .pnum{font-family:'Fraunces';font-weight:700;color:var(--teal);font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+  .pcard h3{font-size:17px;color:var(--navy);margin:4px 0 8px}
+  .pcard p{margin:0;color:#3a4856;font-size:13.5px}
+  .pcard .gate{margin-top:12px;font-size:11.5px;color:var(--blue);font-weight:600}
+  .arrowflow{text-align:center;color:var(--muted);font-size:12px;margin-top:10px}
+  /* footer */
+  footer{background:var(--navy);color:#aac4dc;padding:30px 0;margin-top:20px;font-size:13px}
+  footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+  footer b{color:#fff}
+  .src{font-size:11.5px;color:var(--muted);margin-top:8px}
+  @media print{
+    body{background:#fff;font-size:11.5px}
+    .hero{padding:30px 0 24px}
+    .hero:after{display:none}
+    section{padding:18px 0;break-inside:avoid}
+    .uc,.kpi,.pcard,.panel,.note{box-shadow:none}
+    .cards,.phase{break-inside:avoid}
+    .uc{break-inside:avoid}
+    a{color:var(--ink);text-decoration:none}
+    .pill{color:#13324f}
+    footer{background:#fff;color:#333;border-top:1px solid var(--line)}
+    footer b{color:#000}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><span class="dot">V</span> Veebase RCM Intelligence Platform</div>
+    <h1>Use Cases &amp; ROI</h1>
+    <p class="vp">Agentic-AI revenue cycle management for Egyptian and MENA healthcare providers — 12 specialized agents driving every claim through a deterministic, explainable pipeline under Human-in-the-Loop governance.</p>
+    <div class="meta">
+      <span class="pill">🏥 NHIA · Private TPAs · Self-Pay</span>
+      <span class="pill">💱 Currency: EGP</span>
+      <span class="pill">🤖 12 RCM agents</span>
+      <span class="pill">🔗 FHIR R4 · signed webhooks</span>
+      <span class="pill">🛡️ Human-in-the-Loop governance</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">Executive Summary</span>
+    <h2>Autonomous where it is safe, supervised where it matters</h2>
+    <p class="lede">Veebase advances each claim through a nine-stage revenue cycle using a pure, deterministic engine that computes a readiness score and a denial-risk score and applies a per-payer rule book for NHIA, private payers, and self-pay. Automation runs only through <b>AUTO</b> gates and stops at every human <b>REVIEW</b> / <b>APPROVE</b> gate, so prohibited actions — auto-accepting low-confidence coding, auto write-offs, submitting a dirty claim — are never executed without a person. The result is faster, cleaner first-pass processing with a complete, immutable audit trail, integrated to payers and TPAs over native JSON, HL7 FHIR R4, and HMAC-signed webhooks.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">Use Cases</span>
+    <h2>Where Veebase delivers</h2>
+    <p class="lede">Six representative deployments across a provider's revenue cycle. Each maps directly to capabilities that exist in the platform today.</p>
+
+    <div class="grid cards">
+
+      <article class="uc">
+        <div class="ucnum">1</div>
+        <h3>Autonomous first-pass processing &amp; exceptions worklist</h3>
+        <div class="who">Hospital billing department</div>
+        <p><span class="lbl">Scenario:</span> High daily claim volume across NHIA and private payers, where most clean claims should move on their own and only true exceptions reach staff.</p>
+        <p><span class="lbl">How Veebase helps:</span> The service layer runs <code>processToGate</code>, looping the engine through every <b>AUTO</b> step (eligibility → prior-auth → charge capture → coding → scrub → submit) and halting the instant a step returns <b>REVIEW</b> or <b>APPROVE</b>. Held claims surface as escalations on a 5-level ladder; everything else advances untouched.</p>
+        <div class="outcome">Staff focus on the <b>exceptions worklist</b> instead of touching every claim; clean claims reach submission without manual handling, and each step is logged to the immutable audit trail.</div>
+      </article>
+
+      <article class="uc">
+        <div class="ucnum">2</div>
+        <h3>Insurer / TPA integration via FHIR + signed webhooks</h3>
+        <div class="who">Payer &amp; TPA connectivity team</div>
+        <p><span class="lbl">Scenario:</span> A private TPA or NHIA gateway needs to push claims in and receive lifecycle status back in real time.</p>
+        <p><span class="lbl">How Veebase helps:</span> Inbound claims arrive as native JSON, batches, or HL7 <b>FHIR R4 <code>Claim</code></b> resources on the versioned <code>/api/v1</code> API (API-key auth, scopes <code>read</code>/<code>write</code>/<code>admin</code>). Outbound, subscribers register webhooks and receive <b>HMAC-SHA256-signed</b> events (<code>claim.submitted</code>, <code>claim.denied</code>, <code>claim.paid</code>, <code>escalation.created</code> …) with delivery retries.</p>
+        <div class="outcome">A clean two-way contract: <b>FHIR R4 in, signed webhooks out</b>, with idempotency keys making retries safe across instances.</div>
+      </article>
+
+      <article class="uc">
+        <div class="ucnum">3</div>
+        <h3>Denial management &amp; appeals</h3>
+        <div class="who">Denial &amp; appeals specialists</div>
+        <p><span class="lbl">Scenario:</span> Denied claims need rapid triage — appeal the recoverable ones, write off the rest, but never silently.</p>
+        <p><span class="lbl">How Veebase helps:</span> The DenialManagement agent classifies the denial and selects an appeal strategy. Within the payer's appeal window and above the minimum threshold it drafts an appeal and routes the claim back to <code>SUBMITTED</code> behind an <b>APPROVE</b> gate; otherwise it <b>proposes</b> a write-off — which always requires explicit human approval and raises a Level-3 escalation.</p>
+        <div class="outcome">Recoverable denials get appealed with an overturn-probability estimate; <b>write-offs are never auto-executed</b> — they are a governed, approved action.</div>
+      </article>
+
+      <article class="uc">
+        <div class="ucnum">4</div>
+        <h3>Point-of-registration eligibility pre-check</h3>
+        <div class="who">Front-desk &amp; registration</div>
+        <p><span class="lbl">Scenario:</span> Catch coverage and prior-auth problems before service, not after a denial.</p>
+        <p><span class="lbl">How Veebase helps:</span> <code>POST /api/v1/eligibility</code> runs a real-time eligibility and risk pre-check with no persistence — applying the payer rule book (e.g. prior auth required when amount ≥ the payer threshold: 5,000 EGP NHIA, 3,000 EGP private) and returning a readiness and denial-risk read instantly.</p>
+        <div class="outcome">Coverage gaps and missing prior auth are caught <b>at registration</b>, cutting preventable downstream denials.</div>
+      </article>
+
+      <article class="uc">
+        <div class="ucnum">5</div>
+        <h3>PDF claim ingestion from mixed hospital templates</h3>
+        <div class="who">Intake &amp; ingestion hub</div>
+        <p><span class="lbl">Scenario:</span> Claims arrive as PDFs in many different hospital layouts.</p>
+        <p><span class="lbl">How Veebase helps:</span> <code>POST /api/ingest</code> performs <b>VLM-assisted</b> extraction (multipart <code>file</code> + <code>template</code>) through the pluggable AI router, with a deterministic template-based fallback so extraction never hard-fails. Each response reports the <code>provider</code> and <code>model</code> that produced it.</p>
+        <div class="outcome">Mixed-template PDFs become structured claims that enter the same governed pipeline — <b>no fixed input format required</b>.</div>
+      </article>
+
+      <article class="uc">
+        <div class="ucnum">6</div>
+        <h3>Privacy-sensitive deployment — local AI + field encryption</h3>
+        <div class="who">Compliance &amp; security</div>
+        <p><span class="lbl">Scenario:</span> PHI must not leave the premises, and AI must run without external API calls.</p>
+        <p><span class="lbl">How Veebase helps:</span> Select the <b>local Ollama</b> AI provider (<code>RCM_AI_PROVIDER=ollama</code>) so chat and PDF extraction run on-prem with no external calls, and set <code>RCM_ENCRYPTION_KEY</code> to encrypt sensitive fields (national IDs) at rest with <b>AES-256-GCM</b>. A redaction helper masks 14-digit IDs in logs.</p>
+        <div class="outcome">A fully on-prem, <b>air-gapped-capable</b> deployment with encryption-at-rest and an always-available deterministic fallback.</div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">Performance</span>
+    <h2>The KPIs Veebase moves</h2>
+    <p class="lede">The platform's 12 revenue-cycle KPIs, current value vs. target. Bars are scaled to each metric; the ▲ marker shows the target.</p>
+
+    <div class="kpitable" id="kpis"></div>
+
+    <div class="legend">
+      <span><span class="sw"></span> Current value</span>
+      <span><span class="tgmark"></span> Target</span>
+      <span><span class="badge b-on">On target</span></span>
+      <span><span class="badge b-warn">Warning</span></span>
+      <span><span class="badge b-off">Off target</span></span>
+      <span style="color:#7a8696">For "lower is better" KPIs (Denial Rate, AR Days, DNFB) the bar shows performance toward the target.</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">ROI Model</span>
+    <h2>Illustrative value for a mid-size hospital</h2>
+    <p class="lede">A transparent, assumption-driven model. Every input below is editable and every benefit shows its formula so a CFO can challenge it. Figures are <b>illustrative</b>, not a guarantee.</p>
+
+    <div class="panel">
+      <h3 style="color:var(--navy);font-size:16px;margin-bottom:4px">Inputs &amp; assumptions</h3>
+      <div class="assumptions">
+        <div class="input"><div class="k">Claim volume</div><div class="v">8,000</div><div class="u">claims / month → 96,000 / yr</div></div>
+        <div class="input"><div class="k">Average claim value</div><div class="v">4,500</div><div class="u">EGP per claim</div></div>
+        <div class="input"><div class="k">Annual billed</div><div class="v">432.0M</div><div class="u">EGP (96,000 × 4,500)</div></div>
+        <div class="input"><div class="k">Baseline denial rate</div><div class="v">8.0%</div><div class="u">before Veebase</div></div>
+        <div class="input"><div class="k">Target denial rate</div><div class="v">5.2%</div><div class="u">platform current vs. 4% goal</div></div>
+        <div class="input"><div class="k">Appeal overturn</div><div class="v">64%</div><div class="u">of appealable denials recovered</div></div>
+        <div class="input"><div class="k">Baseline AR days</div><div class="v">52</div><div class="u">days outstanding</div></div>
+        <div class="input"><div class="k">AR days reduction</div><div class="v">10</div><div class="u">days (→ 42, platform current)</div></div>
+        <div class="input"><div class="k">Cost of capital</div><div class="v">22%</div><div class="u">annual (working-capital benefit)</div></div>
+        <div class="input"><div class="k">Routine claims automated</div><div class="v">60%</div><div class="u">flow AUTO-gate, no manual touch</div></div>
+        <div class="input"><div class="k">Minutes saved / claim</div><div class="v">6</div><div class="u">fully-loaded staff time</div></div>
+        <div class="input"><div class="k">Loaded staff cost</div><div class="v">90</div><div class="u">EGP / hour</div></div>
+        <div class="input"><div class="k">Charge-capture lift</div><div class="v">+0.5%</div><div class="u">of billed (under-billing recovered)</div></div>
+        <div class="input"><div class="k">Net collection rate</div><div class="v">95.7%</div><div class="u">platform current (target 96%)</div></div>
+        <div class="input"><div class="k">Annual platform cost</div><div class="v">2.4M</div><div class="u">EGP (illustrative, for payback)</div></div>
+      </div>
+
+      <h3 style="color:var(--navy);font-size:16px;margin:26px 0 0">Annual value by lever</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Benefit lever</th>
+            <th>Formula &amp; assumptions</th>
+            <th class="num">Annual value (EGP)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>i. Denial reduction</b><br><span style="color:var(--muted);font-size:12px">recovered revenue</span></td>
+            <td><span class="formula">432.0M billed × (8.0% − 5.2%) denial drop = 12.10M at risk → × 64% appeal overturn / recovery</span></td>
+            <td class="num">7,741,000</td>
+          </tr>
+          <tr>
+            <td><b>ii. AR-days reduction</b><br><span style="color:var(--muted);font-size:12px">working-capital benefit</span></td>
+            <td><span class="formula">432.0M / 365 = 1.184M per day × 10 days freed = 11.84M cash × 22% cost of capital</span></td>
+            <td class="num">2,604,000</td>
+          </tr>
+          <tr>
+            <td><b>iii. Labor efficiency</b><br><span style="color:var(--muted);font-size:12px">staff hours on routine claims</span></td>
+            <td><span class="formula">96,000 × 60% automated = 57,600 claims × 6 min = 5,760 hrs × 90 EGP/hr</span></td>
+            <td class="num">518,000</td>
+          </tr>
+          <tr>
+            <td><b>iv. Revenue integrity</b><br><span style="color:var(--muted);font-size:12px">charge capture</span></td>
+            <td><span class="formula">432.0M billed × 0.5% charge-capture lift = 2.16M × 95.7% net collection rate</span></td>
+            <td class="num">2,067,000</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">Total estimated annual value</td>
+            <td class="num">12,930,000</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="waterfall">
+        <h3 style="color:var(--navy);font-size:16px;margin-bottom:14px">Where the value comes from</h3>
+        <!-- Scale: total 12.93M spans full width. Segment widths are % of total. -->
+        <div class="wf-row">
+          <div class="wlbl">i · Denial reduction</div>
+          <div class="wf-track"><div class="wf-seg c1" style="left:0;width:59.9%">59.9%</div></div>
+          <div class="wval">7.74M</div>
+        </div>
+        <div class="wf-row">
+          <div class="wlbl">ii · AR-days reduction</div>
+          <div class="wf-track"><div class="wf-seg c2" style="left:0;width:20.1%">20.1%</div></div>
+          <div class="wval">2.60M</div>
+        </div>
+        <div class="wf-row">
+          <div class="wlbl">iii · Labor efficiency</div>
+          <div class="wf-track"><div class="wf-seg c3" style="left:0;width:4.0%">4.0%</div></div>
+          <div class="wval">0.52M</div>
+        </div>
+        <div class="wf-row">
+          <div class="wlbl">iv · Revenue integrity</div>
+          <div class="wf-track"><div class="wf-seg c4" style="left:0;width:16.0%">16.0%</div></div>
+          <div class="wval">2.07M</div>
+        </div>
+        <div class="wf-row" style="margin-top:6px">
+          <div class="wlbl" style="color:var(--blue)">Total annual value</div>
+          <div class="wf-track" style="background:#e6eef6"><div class="wf-seg ctotal" style="left:0;width:100%">100% · EGP 12.93M</div></div>
+          <div class="wval" style="color:var(--blue)">12.93M</div>
+        </div>
+      </div>
+
+      <div class="twocol" style="margin-top:24px">
+        <div class="input" style="background:var(--teal-soft);border-color:#cbe7e5">
+          <div class="k" style="color:var(--teal)">Total annual value</div>
+          <div class="v">EGP 12.93M</div>
+          <div class="u">sum of the four levers</div>
+        </div>
+        <div class="input" style="background:var(--blue-soft)">
+          <div class="k">Estimated payback period</div>
+          <div class="v">≈ 2.2 months</div>
+          <div class="u">2.4M annual cost ÷ 12.93M value × 12</div>
+        </div>
+      </div>
+
+      <div class="disclaimer">
+        <b>Disclaimer.</b> All figures above are <b>illustrative assumptions for modelling purposes, not guarantees</b> of results. They are derived from the editable inputs shown — not from observed customer outcomes. Actual results depend on payer mix, baseline performance, contract terms, claim complexity, and rollout phase. The platform-reported KPIs (denial rate 5.2%, AR days 42, net collection 95.7%, appeal overturn 64.3%) are used as modelling anchors. Validate every assumption against your own baseline before committing to any business case.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">Adoption</span>
+    <h2>How value is realized over the 3-phase rollout</h2>
+    <p class="lede">Value compounds as Human-in-the-Loop gates are progressively relaxed from APPROVE toward AUTO — only after each phase has been validated against the audit trail.</p>
+
+    <div class="phase">
+      <div class="pcard">
+        <div class="pnum">Phase 1</div>
+        <h3>Assistive</h3>
+        <p>Agents propose; humans decide. Most gates sit at <b>REVIEW</b>/<b>APPROVE</b>. The platform builds an evidence base of recommendations and outcomes while staff stay fully in control.</p>
+        <div class="gate">Early wins: cleaner first-pass, fewer preventable denials.</div>
+      </div>
+      <div class="pcard">
+        <div class="pnum">Phase 2</div>
+        <h3>Supervised</h3>
+        <p>Proven, low-risk steps shift to <b>AUTO</b> while sensitive actions (coding sign-off, write-offs, high-value &gt; 50,000 EGP) remain gated. Automation share rises; exceptions worklist shrinks.</p>
+        <div class="gate">Compounding: labor efficiency &amp; AR-days benefits scale up.</div>
+      </div>
+      <div class="pcard">
+        <div class="pnum">Phase 3</div>
+        <h3>Scaled</h3>
+        <p>The bulk of routine claims flow autonomously end-to-end; humans own exceptions and governance. Prohibited actions remain permanently human-gated by policy.</p>
+        <div class="gate">Full model value with audit-grade governance intact.</div>
+      </div>
+    </div>
+    <div class="arrowflow">Assistive&nbsp; → &nbsp;Supervised&nbsp; → &nbsp;Scaled &nbsp;·&nbsp; gates relaxed only after audited validation</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <b>Veebase RCM Intelligence Platform</b> — illustrative figures, 2026.
+      <div class="src">Technical facts grounded in the platform's engine (payer rule book, scoring, HITL gates), 12-KPI dataset, and integration API.</div>
+    </div>
+    <div>EGP · NHIA · Private · Self-Pay</div>
+  </div>
+</footer>
+
+<script>
+  // 12 KPIs from src/lib/rcm-data.ts (KPIS). higherIsBetter=false for rate/days we want low.
+  const KPIS = [
+    {name:'First-Pass Claim Rate', value:92.4, target:94, unit:'pct', cat:'Operational', status:'WARNING', higher:true},
+    {name:'Denial Rate', value:5.2, target:4, unit:'pct', cat:'Operational', status:'WARNING', higher:false},
+    {name:'Preventable Denial Rate', value:1.8, target:2, unit:'pct', cat:'Operational', status:'ON_TARGET', higher:false},
+    {name:'Appeal Overturn Rate', value:64.3, target:60, unit:'pct', cat:'Operational', status:'ON_TARGET', higher:true},
+    {name:'AR Days', value:42, target:40, unit:'days', cat:'Financial', status:'WARNING', higher:false},
+    {name:'Clean Claim Rate', value:91.8, target:94, unit:'pct', cat:'Operational', status:'WARNING', higher:true},
+    {name:'Net Collection Rate', value:95.7, target:96, unit:'pct', cat:'Financial', status:'WARNING', higher:true},
+    {name:'Prior Auth Approval Rate', value:82.1, target:85, unit:'pct', cat:'Operational', status:'OFF_TARGET', higher:true},
+    {name:'Charge Capture Score', value:93.5, target:95, unit:'pct', cat:'Quality', status:'WARNING', higher:true},
+    {name:'Coding Accuracy Rate', value:96.2, target:95, unit:'pct', cat:'Quality', status:'ON_TARGET', higher:true},
+    {name:'DNFB Days', value:3.2, target:3, unit:'days', cat:'Operational', status:'WARNING', higher:false},
+    {name:'Patient Collection Rate', value:71.4, target:80, unit:'pct', cat:'Financial', status:'OFF_TARGET', higher:true}
+  ];
+  const badge = {ON_TARGET:['b-on','On target'], WARNING:['b-warn','Warning'], OFF_TARGET:['b-off','Off target']};
+  function fmt(v,u){ return u==='days' ? v+' d' : v+'%'; }
+  const root = document.getElementById('kpis');
+  KPIS.forEach(k=>{
+    // scale: percent metrics 0-100; days metrics 0..max(value,target)*1.6
+    const scaleMax = k.unit==='days' ? Math.max(k.value,k.target)*1.6 : 100;
+    const fillPct = Math.min(100, (k.value/scaleMax)*100);
+    const tgtPct = Math.min(100, (k.target/scaleMax)*100);
+    const b = badge[k.status];
+    const el = document.createElement('div');
+    el.className='kpi';
+    el.innerHTML =
+      '<div><div class="name">'+k.name+'</div><div class="cat">'+k.cat+'</div></div>'+
+      '<div class="bar"><div class="fill" style="width:'+fillPct.toFixed(1)+'%"></div>'+
+        '<div class="tgt" style="left:'+tgtPct.toFixed(1)+'%"></div></div>'+
+      '<div class="vals"><b>'+fmt(k.value,k.unit)+'</b> &nbsp;/ target '+fmt(k.target,k.unit)+
+        '<span class="badge '+b[0]+'">'+b[1]+'</span></div>';
+    root.appendChild(el);
+  });
+</script>
+</body>
+</html>
